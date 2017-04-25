@@ -1,14 +1,23 @@
 TODO: INDENT AS YOU FINISH
 
 better function to map $ at end of found (suff) string to the start index of that string (aka string_start_in_not_backwards_T)
+
 better function to map index anywhere inside found (suff) string to the start index of that string (aka string_start_in_not_backwards_T)
+
 fix the many-ways-to-make-same-match problem introduced by indels
+
 redo verification so that it will be able to cope with negative overlap offsets (and thus handle inclusions)
+
 clean up the vars saved and created when index is created
+
 edit distance algorithm should use magical bit whatever to be faster
+
 output format matching what is needed
+
 checkpoints rank lookup needs to be sped up
+
 clean up all that mapping business inside the overlaps() function
+
 
 
 CHECK THESE FOR ONE-OFF ERRORS

@@ -1,7 +1,7 @@
 import time
 
-import valimaki_2 as specific
-# import kucherov as specific
+# import valimaki_2 as specific
+import kucherov as specific
 from ed import distance_alignment as edit_distance
 from prog_args import Arguments
 from read_data import rd
@@ -114,6 +114,7 @@ def find_candidates(S, T, id_to_index_map, index_to_id_map, arguments):
 
 	print('total nodes: ', index.nodes)
 	print('total duplicate candidates: ', index.duplicate_candidate_count)
+	print('original candidate ratio: ', len(candidate_set)/(len(candidate_set)+index.duplicate_candidate_count))
 	return candidate_set
 
 
@@ -234,8 +235,7 @@ def overlaps(S_dict, arguments):
 	# print('verified_set', verified_set)
 	print('num candidates:', len(candidate_set))
 	print('num verified:', len(verified_set))
-	print('step 1 precision', len(verified_set) / (len(verified_set) + len(candidate_set)) if len(candidate_set) > 0 else 1)
-
+	print('step 1 precision', len(verified_set) / (len(candidate_set)) if len(candidate_set) > 0 else 1)
 	print('verified set', verified_set)
 
 

@@ -130,25 +130,25 @@ class FMIndex:
 	returns the index of where that string begins in the original version of T
 	'''
 	def string_start_in_not_backwards_T(self, end_dollar_in_index_T):
-		print('\n\n')
-		print('end_dollar_in_index_T', end_dollar_in_index_T)
-		print("T backwards:")
-		print(self.T)
-		print(debug_aux.carat_chars([end_dollar_in_index_T], len(self.normalT)))
-		z = (len(self.T) - end_dollar_in_index_T)%len(self.T)
-		print('index_to_id_map', self.index_to_id_map)
-		print('end$in_T', z)
-		print("T correct:")
-		print(self.normalT)
-		print(debug_aux.carat_chars([z], len(self.normalT)+2))
-		id = self.index_to_id_map[z]
-		print('id', id)
-		real_id = (id - 1)% len(self.index_to_id_map)
-		print('real_id', real_id)
+		# print('\n\n')
+		# print('end_dollar_in_index_T', end_dollar_in_index_T)
+		# print("T backwards:")
+		# print(self.T)
+		# print(debug_aux.carat_chars([end_dollar_in_index_T], len(self.normalT)))
+		# z = (len(self.T) - end_dollar_in_index_T)%len(self.T)
+		# print('index_to_id_map', self.index_to_id_map)
+		# print('end$in_T', z)
+		# print("T correct:")
+		# print(self.normalT)
+		# print(debug_aux.carat_chars([z], len(self.normalT)+2))
+		# id = self.index_to_id_map[z]
+		# print('id', id)
+		# real_id = (id - 1)% len(self.index_to_id_map)
+		# print('real_id', real_id)
 
 
 		fuck_knows = len(self.T)-self.next_dollar_sign_at[end_dollar_in_index_T]
-		print('fuck_knows', fuck_knows)
+		# print('fuck_knows', fuck_knows)
 		return fuck_knows
 
 	'''
