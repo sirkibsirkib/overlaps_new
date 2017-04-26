@@ -44,7 +44,6 @@ def cigar_string(x, y, mat):
 	return c
 
 
-
 def distance_alignment(x, y):
 	mat = [[0 for i in range(len(x) + 1)] for j in range(len(y) + 1)]
 	for i in range(len(x) + 1):

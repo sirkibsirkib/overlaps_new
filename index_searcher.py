@@ -36,11 +36,13 @@ class FMIndex:
 	#F is the FIRST col of BW matrix
 	#	C is the compact representation of F, with start indexes for each alphabet letter
 	#sSAT is the Suffix Array mapping where each suffix row occurs in the original string
-	def __init__(self, T, candidate_set, condition_met_f, arguments, index_to_id_map):
+	def __init__(self, T, candidate_set, condition_met_f, arguments, index_to_id_map, id_to_index_map, len_S):
 		self.arguments = arguments
 		self.candidate_set = candidate_set
 		self.condition_met_f = condition_met_f
 		self.index_to_id_map = index_to_id_map
+		self.id_to_index_map = id_to_index_map
+		self.len_S = len_S
 
 		self.nodes = 0
 		self.duplicate_candidate_count = 0
@@ -118,29 +120,45 @@ class FMIndex:
 	return the index of the beginning of THAT string in NOT backwards T
 	'''
 	def index_inside_to_front_not_backwards(self, x):
+		walk_left = walk_right = x
+		while self.T[walk_left] != '$':
+			walk_left -= 1
+		while walk_right < len(self.T) and self.T[walk_right] != '$':
+			walk_right += 1
+		walk_right -= 1
+		b_index = (len(self.T)-walk_right-1)%len(self.T)
+		b_tail = x-walk_left-1
+
 		print(self.T)
-		print(debug_aux.carat_chars([x], 40))
-		first_lower = self.next_dollar_sign_at[0]
-		for v in self.next_dollar_sign_at:
-			if v < x:
-				first_lower = v
-			else:
-				break
-		preceding_dollar_index = self.string_start_in_not_backwards_T(first_lower)
-		print(self.T)
-		print(debug_aux.carat_chars([first_lower], 40))
-		return preceding_dollar_index, x - first_lower - 1
+		print(debug_aux.carat_chars([walk_left, x, walk_right], 60))
+		print(debug_aux.carat_chars([x], 60))
+
+		print('b_index')
+		print(self.normalT)
+		print(debug_aux.carat_chars([b_index], 70))
+		print(b_index, b_tail)
+
+		return b_index, b_tail
 
 	'''
 	given the index of a dollar sign in the index's version of T (which is reversed)
 	returns the index of where that string begins in the original version of T
 	'''
 	def string_start_in_not_backwards_T(self, end_dollar_in_index_T):
-		# print('\n\n')
-		# print('end_dollar_in_index_T', end_dollar_in_index_T)
-		# print("T backwards:")
-		# print(self.T)
-		# print(debug_aux.carat_chars([end_dollar_in_index_T], len(self.normalT)))
+		print('\n\n')
+		print('end_dollar_in_index_T', end_dollar_in_index_T)
+		print("T backwards:")
+		print(self.T)
+		print(debug_aux.carat_chars([end_dollar_in_index_T], len(self.normalT)))
+		x = (end_dollar_in_index_T-1)%len(self.T)
+		normal_x = len(self.T)-x-1
+		print(self.normalT)
+		print(debug_aux.carat_chars([normal_x], len(self.normalT)+10))
+		ind = self.id_to_index_map[(self.index_to_id_map[normal_x] - 1)% self.len_S]
+		print(debug_aux.carat_chars([ind], len(self.normalT)+10))
+		return ind
+
+
 		# z = (len(self.T) - end_dollar_in_index_T)%len(self.T)
 		# print('index_to_id_map', self.index_to_id_map)
 		# print('end$in_T', z)
@@ -151,15 +169,22 @@ class FMIndex:
 		# print('id', id)
 		# real_id = (id - 1)% len(self.index_to_id_map)
 		# print('real_id', real_id)
-
-
-		fuck_knows = len(self.T)-self.next_dollar_sign_at[end_dollar_in_index_T]
-		# print('fuck_knows', fuck_knows)
-		return fuck_knows
+		# exit(1)
+		# print()
+		# fuck_knows = len(self.T)-self.next_dollar_sign_at[end_dollar_in_index_T]
+		# # print('fuck_knows', fuck_knows)
+		# return fuck_knows
 
 
 	def new_candidate(self, a_index, b_index, a_ovr, b_ovr, b_tail, debug_str):
-		return (a_index, b_index, a_ovr, b_ovr, b_tail, debug_str)
+		cand = (a_index, b_index, a_ovr, b_ovr, b_tail, debug_str)
+		if a_index < 0 or b_index < 0 or a_index >= len(self.T) or b_index >= len(self.T):
+			print(cand)
+			raise ValueError('oh noes')
+		if b_index == 36:
+			print(cand)
+			raise ValueError('oh noes')
+		return cand
 
 
 	'''
@@ -180,17 +205,37 @@ class FMIndex:
 		if sp >= ep:
 			return
 
+		# count node
+		self.nodes += 1
+		if self.nodes % 100000 == 0:
+			print('\nnodes: ', self.nodes / 1000000, 'mil')
+			print('matched so far:', '[' + (p_i_start * '*') + MATCHED + ']   sp:', sp, 'ep', ep)
+			print('>>>', MATCHED.replace('_', '').upper())
+			print('p_i_next', p_i_next, 'p_i_end', p_i_end, 'err', errors, 'allowed_err', error_lookup[p_i_next])
+
+		if self.arguments.indels and errors < error_lookup[min(p_i_next, p_i_end-1)-p_i_start]:
+			# INSERTION
+			if indel_balance >= 0:
+				for a in self.sorted_alphabet:
+					sp_ = self.C[a] + self.rank(a, sp)
+					ep_ = self.C[a] + self.rank(a, ep + 1) - 1
+					self.forward(p, p_i_start, p_i_next, p_i_end, sp_, ep_, p_T_index, p_id,
+								 errors + 1, error_lookup, block_id_lookup, MATCHED + a.lower(), indel_balance+1, suff_len+1, pref_len)
+
+
+
 		# no more characters in patt to match
 		if p_i_next >= p_i_end :
 			# INCLUSIONS!!!
 			if self.arguments.inclusions:
 				for i in range(sp, ep + 1):
+					print('\n\nINCLUSION')
 					a_ovr = pref_len + p_i_start
 					b_ovr = suff_len + p_i_start
 					b_index, b_tail = self.index_inside_to_front_not_backwards(self.sSAT[i])
-					print('INCLUSION')
 					print('b_index', b_index)
 					print('b_tail', b_tail)
+					print('\n\n')
 					x = self.new_candidate(a_index=p_T_index,
 										   b_index=b_index,
 										   a_ovr=a_ovr,
@@ -227,8 +272,9 @@ class FMIndex:
 			debug_string = 'MATCHED[{}] matched_pref[{}] matched_suff[{}]'.format(MATCHED, a_ovr, b_ovr)
 			# debug_string = ''
 			for i in range(sp_, ep_ + 1):
+				b_index = self.string_start_in_not_backwards_T(self.sSAT[i])
 				x = self.new_candidate(a_index=p_T_index,
-									   b_index=self.string_start_in_not_backwards_T(self.sSAT[i]),
+									   b_index=b_index,
 									   a_ovr=a_ovr,
 									   b_ovr=b_ovr,
 									   b_tail=0,
@@ -240,22 +286,6 @@ class FMIndex:
 					else:
 						self.duplicate_candidate_count += 1
 
-		# count node
-		self.nodes += 1
-		if self.nodes % 100000 == 0:
-			print('\nnodes: ', self.nodes/1000000, 'mil')
-			print('matched so far:', '['+(p_i_start*'*')+MATCHED+']   sp:', sp, 'ep', ep)
-			print('>>>', MATCHED.replace('_', '').upper())
-			print('p_i_next', p_i_next, 'p_i_end', p_i_end, 'err', errors, 'allowed_err', error_lookup[p_i_next])
-
-		if self.arguments.indels and errors < error_lookup[p_i_next-p_i_start]:
-			# INSERTION
-			if indel_balance >= 0:
-				for a in self.sorted_alphabet:
-					sp_ = self.C[a] + self.rank(a, sp)
-					ep_ = self.C[a] + self.rank(a, ep + 1) - 1
-					self.forward(p, p_i_start, p_i_next, p_i_end, sp_, ep_, p_T_index, p_id,
-								 errors + 1, error_lookup, block_id_lookup, MATCHED + a.lower(), indel_balance+1, suff_len+1, pref_len)
 
 
 

@@ -1,6 +1,7 @@
 TODO:
 
 debug indels not finding all solutions. probably some silly off-by-one somewhere
+cigar code file
 solutions found not deterministic! problem somewhere
 check correctness of basic.fasta
 correctness of error-capping
