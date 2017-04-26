@@ -1,55 +1,18 @@
-    FIXES
+TODO:
 
-fix the many-ways-to-make-same-match problem introduced by indels
-
-
-
-
-
-    OVERHAULS
-
-
-
-have candidates store the tail-length of the suffix (nonzero for an inclusion)
-
-output format matching what is needed
-
+correctness of error-capping
+fix and proof the output
 better function to map $ at end of found (suff) string to the start index of that string (aka string_start_in_not_backwards_T)
-
 better function to map index anywhere inside found (suff) string to the start index of that string (aka string_start_in_not_backwards_T)
-
 un-confuse the mapping process and standardise things in general
-
 edit distance algorithm should use magical bit whatever to be faster
-
 clean up all that mapping business inside the overlaps() function
-
-program start and arguments
-
-
-
-
-
-    ADDITIONS
-
+program start and arguments cleaned up
+output to file instead of console
 annotate the code a bit more
-
-redo verification so that it will be able to cope with negative overlap offsets (and thus handle inclusions)
-
 clean up the vars saved and created when index is created
-
 checkpoints rank lookup needs to be sped up
-
-
-
-
-
-    CHECK FOR CORRECTNESS
-
-kucherov Cond 3 filter index
-
-index range ep value inclusive?
-
-thresh strictly greater than?
-
-last character being included in a match?
+check correctness of kucherov Cond 3 filter index
+check correctness of index range ep value inclusive?
+check correctness of thresh strictly greater than?
+check correctness of last character being included in a match?

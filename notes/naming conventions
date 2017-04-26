@@ -20,7 +20,7 @@ candidate tuples are in form
 1    B_INDEX,
 2    A_OVR,
 3    B_OVR,
-4    B_TAIL,
+4    b_tail,
 5    DEBUG_STR
     )
 
