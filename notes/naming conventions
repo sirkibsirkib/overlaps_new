@@ -1,0 +1,45 @@
+MY TERMINOLOGY:
+
+A is the PATT string. the prefix was found to match the suffix of B, the FOUND string.
+
+      A=============
+B=========
+
+INCLUSION:
+   A=======
+B============
+
+
+
+         A(==A_OVR========)======A_TAIL====
+B====B_HEAD======(======B_OVR===)B_TAIL
+
+candidate tuples are in form
+    (
+0    A_INDEX,
+1    B_INDEX,
+2    A_OVR,
+3    B_OVR,
+4    B_TAIL,
+5    DEBUG_STR
+    )
+
+
+
+output format:
+idA     idB     O           OHA     OHB     OLA     OLB     K
+                I inverted
+                N normal
+
+Overlap lengths are encoded as follows:
+
+        OHA     OLA
+(A)    -------------
+(B)           -----------------
+                OLB      OHB
+
+OHA is the number of characters of A that are before the overlap. It can be a
+negative integer if the overlap is:
+
+(A)       --------------
+(B) ------------

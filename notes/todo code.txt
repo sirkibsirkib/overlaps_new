@@ -8,19 +8,23 @@ fix the many-ways-to-make-same-match problem introduced by indels
 
     OVERHAULS
 
+
+
+have candidates store the tail-length of the suffix (nonzero for an inclusion)
+
+output format matching what is needed
+
 better function to map $ at end of found (suff) string to the start index of that string (aka string_start_in_not_backwards_T)
 
 better function to map index anywhere inside found (suff) string to the start index of that string (aka string_start_in_not_backwards_T)
 
 un-confuse the mapping process and standardise things in general
 
-have candidates store the tail-length of the suffix (nonzero for an inclusion)
-
 edit distance algorithm should use magical bit whatever to be faster
 
-output format matching what is needed
-
 clean up all that mapping business inside the overlaps() function
+
+program start and arguments
 
 
 

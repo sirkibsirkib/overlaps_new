@@ -6,6 +6,7 @@ from ed import distance_alignment as edit_distance
 from prog_args import Arguments
 from read_data import rd
 import debug_aux
+import math
 
 from index_searcher import FMIndex as fm_index
 
@@ -14,11 +15,27 @@ from index_searcher import FMIndex as fm_index
 
 
 def align_using_cigar(a, b, cigar):
+	print("\nCIGAR BABY")
+	print('a', a)
+	print('b', b)
+	print('cigar', cigar)
+	print('len a', len(a))
+	print('leb b', len(b))
 	a_cigar = ''
 	b_cigar = ''
 	a_i = 0
 	b_i = 0
-	for n, code in zip(cigar[::2], cigar[1::2]):
+	while len(cigar) > 0:
+		print('CIGAR IS NOW', '[' + cigar + ']')
+		num_len = 0
+		while cigar[:num_len+1].isdigit():
+			num_len += 1
+		n = int(cigar[:num_len])
+		code = cigar[num_len]
+		cigar = cigar[num_len+1:]
+
+		print('code', '[' + code + ']')
+		print('n', '[' + str(n) + ']')
 		if code == 'I':
 			for _ in range(int(n)):
 				a_cigar += '-'
@@ -38,20 +55,23 @@ def align_using_cigar(a, b, cigar):
 	return a_cigar, b_cigar
 
 def print_solution(sol):
-	print(sol)
-	a = S_dict[sol[0]]
-	if sol[6]: a = a[::-1]
-	b = S_dict[sol[1]]
-	if sol[7]: b = b[::-1]
-	# print('a', a)
-	# print('b', b)
-	a_head = a[:len(a)-sol[2]]
-	b_tail = b[sol[3]:]
-	cigar = sol[5]
-	a_aligned, b_aligned = align_using_cigar(a[-sol[2]:], b[:sol[3]], cigar)
-	print(a_head + '(' + a_aligned + ')')
-	print(((len(a_head)) * ' ') + '(' + b_aligned + ')' + b_tail)
-	print()
+	pass
+	# # TODO candidates have been changed!
+	# a_index, b_index, a_ovr, b_ovr, b_tail, cigar, debug_str = sol
+	# print('sol', sol)
+	# a = S_dict[sol[0]]
+	# if sol[6]: a = a[::-1]
+	# b = S_dict[sol[1]]
+	# if sol[7]: b = b[::-1]
+	# print('a (pref) = ' +a)
+	# print('b (suff) = ' +b)
+	# a_head = a[:len(a)-sol[2]]
+	# b_tail = b[sol[3]:]
+	# cigar = sol[5]
+	# a_aligned, b_aligned = align_using_cigar(a[-sol[2]:], b[:sol[3]], cigar)
+	# print(a_head + '(' + a_aligned + ')')
+	# print(((len(a_head)) * ' ') + '(' + b_aligned + ')' + b_tail)
+	# print()
 
 def string_id_to_T_index_map(S):
 	ind = 0
@@ -83,7 +103,6 @@ def block_id_and_error_lookups(suffix_parts, filter):
 	return block_id_lookup, error_lookup
 
 def find_candidates(S, T, id_to_index_map, index_to_id_map, arguments):
-	print('hey')
 	candidate_set = set()
 	index = fm_index(T, candidate_set, specific.conditions_met, arguments, index_to_id_map)
 	for p_id, patt in enumerate(S):
@@ -99,9 +118,21 @@ def find_candidates(S, T, id_to_index_map, index_to_id_map, arguments):
 		print(debug_aux.carat_chars([p_T_index], 50))
 		print(patt)
 
+		error_hard_cap = math.floor(len(patt)*arguments.e)
+
 		print('FILTERS')
 		for filter in filters:
 			print('filter', filter)
+
+			filter_capped = [min(error_hard_cap, x) for x in filter]
+			print('FILTER UNCAPPED', filter)
+			print('FILTER CAPPED', filter_capped)
+			print('patt len', len(filter))
+
+			filter = filter_capped
+
+			# time.sleep(1)
+
 			first_block_index = len(block_lengths)-len(filter)
 			p_i_start = sum(block_lengths[:first_block_index])
 			print()
@@ -114,8 +145,12 @@ def find_candidates(S, T, id_to_index_map, index_to_id_map, arguments):
 
 	print('total nodes: ', index.nodes)
 	print('total duplicate candidates: ', index.duplicate_candidate_count)
-	print('original candidate ratio: ', len(candidate_set)/(len(candidate_set)+index.duplicate_candidate_count))
+	print('original candidate ratio: ', len(candidate_set)/(len(candidate_set)+index.duplicate_candidate_count) if len(candidate_set) > 0 else '?')
 	return candidate_set
+
+
+def output_tuple():
+	pass
 
 
 def remove_reflexive_candidates(candidates, arguments, index_to_id_map, id_to_names_map):
@@ -135,41 +170,59 @@ def remove_reflexive_candidates(candidates, arguments, index_to_id_map, id_to_na
 				ret.add(x)
 		return ret
 
-def verifies(candidate, T, e, c0_suffix_length, indels):
-	if indels:
-		a_start = candidate[0] + c0_suffix_length - candidate[2]
-		a_end = a_start + candidate[2]
-		a = T[a_start: a_end]
-		b_end = candidate[1] + candidate[3]
-		b = T[candidate[1]: b_end]
-		ed, cigar = edit_distance(a, b)
-		return (ed if ed <= max(candidate[2], candidate[3]) *e else -1), cigar
-
+def verifies(candidate, T, b_len, arguments):
+	#TODO make sure the b_len arg is correctly giving the length of string B (suffix / found) string
 	try:
-		errors_allowed = candidate[2]*e
-		error_count = 0
-		a_start = candidate[0] + c0_suffix_length - candidate[2]
-		b_start = candidate[1]
-		if a_start < 0 or b_start < 0:
-			return -1, ''
-		overlap_length = candidate[2]
-		for i in range(overlap_length):
-			error_count += 0 if T[a_start+i] == T[b_start+i] and T[b_start+i] != '$' else 1
-			if error_count > errors_allowed:
-				return -1, ''
-		return error_count, str(overlap_length) + 'M'
+		a_index, b_index, a_ovr, b_ovr, b_tail, debug_str = candidate
+
+		errs_allowed = math.floor(max(a_ovr, b_ovr)*arguments.e)
+		b_ovr_start = b_index - b_ovr - b_tail + b_len
+		print(candidate)
+		a_ovr_string = T[a_index : a_index + a_ovr]
+		b_ovr_string = T[b_ovr_start : b_index + b_ovr - b_tail]
+
+		if arguments.indels:
+			ed, cigar = edit_distance(a_ovr_string, b_ovr_string)
+			return (ed if ed <= errs_allowed else -1), cigar
+		else: #hamming
+			assert a_ovr == b_ovr
+			err_count = 0
+			for i in range(a_ovr):
+				if T[a_index+i] != T[b_ovr_start+i]:
+					err_count += 1
+			return err_count <= errs_allowed, str(a_ovr) + 'M'
 	except:
 		#out of string bounds exception
-		return -1, ''
+		print('OH CRAP, out of bounds verify!! oh noes!')
+		raise
 
-def verify(candidate_set, T, index_to_length_map, arguments):
-	ret = set()
-	for c in candidate_set:
-		v, cigar = verifies(c, T, arguments.e, index_to_length_map[c[0]], arguments.indels)
-		if v != -1:
-			x = (c[0], c[1], c[2], c[3], v, cigar)
-			ret.add(x)
-	return ret
+def get_solutions(candidate_set, T, index_to_length_map, index_to_id_map, id_to_names_map, arguments):
+	solution_set = set()
+	for candidate in candidate_set:
+		b_len = index_to_length_map[candidate[1]]
+		k, cigar = verifies(candidate, T, b_len, arguments)
+
+		if k != -1: #-1 errors means 'too many to verify'
+			#solution accepted
+			a_index, b_index, a_ovr, b_ovr, b_tail, debug_str = candidate
+			a_id = index_to_id_map[a_index]
+			b_id = index_to_id_map[b_index]
+			a_name = id_to_names_map[a_id]
+			b_name = id_to_names_map[b_id]
+			if not arguments.inverts:
+				a_flip = b_flip = False
+			else:
+				a_flip = a_id % 2 == 1
+				b_flip = b_id % 2 == 1
+
+			if a_id > b_id:
+				# need to swap around the solutions
+				pass
+			#idA idB O OHA OHB OLA OLB K
+			c = c[:5] + (cigar,) + c[6:]
+			print('AFTER VERIFICATION', c)
+			solution_set.add(c)
+	return solution_set
 
 '''
 Given S_dict, a dict with values being strings.
@@ -227,36 +280,42 @@ def overlaps(S_dict, arguments):
 	t2 = time.clock()
 	print('step1 time', t2-t1)
 	#STEP 2
-	verified_set = verify(candidate_set, T, index_to_length_map, arguments)
+	solution_set = get_solutions(candidate_set, T, index_to_length_map, index_to_id_map, id_to_names_map, arguments)
 
 	t3 = time.clock()
 	print('step2 time', t3-t2)
 	# print('candidate_set', candidate_set)
 	# print('verified_set', verified_set)
 	print('num candidates:', len(candidate_set))
-	print('num verified:', len(verified_set))
-	print('step 1 precision', len(verified_set) / (len(candidate_set)) if len(candidate_set) > 0 else 1)
-	print('verified set', verified_set)
+	print('num verified:', len(solution_set))
+	print('step 1 precision', len(solution_set) / (len(candidate_set)) if len(candidate_set) > 0 else 1)
+	print('verified set', solution_set)
 
 
 	solutions = []
-	for v in verified_set:
-		a_id = index_to_id_map[v[0]]
-		b_id = index_to_id_map[v[1]]
+	for sol in solution_set:
+
+		# TODO candidates have been changed!
+		a_id = index_to_id_map[sol[0]]
+		b_id = index_to_id_map[sol[1]]
 		if not arguments.inverts:
 			a_flip = b_flip = False
 		else:
 			a_flip = a_id % 2 == 1
 			b_flip = b_id % 2 == 1
-		# print()
-		# print(v)
-		# print('==>')
-		# print('a_id', a_id, 'b_id', b_id)
-		# print('a_flip', a_flip, 'b_flip', b_flip)
+
+		print('WILL BE SOLUTION', sol)
+
 		a_name = id_to_names_map[a_id]
 		b_name = id_to_names_map[b_id]
-		sol = (a_name, b_name, v[2], v[3], v[4], v[5], a_flip, b_flip)
-		solutions.append(sol)
+		a = S_dict[a_name]
+		b = S_dict[b_name]
+		if a_flip: a = a[::-1]
+		if b_flip: b = b[::-1]
+		print(' '*(-sol[3]+len(b)) + a)
+		print(b)
+		# sol = (a_name, b_name, v[2], v[3], v[4], v[5], a_flip, b_flip, v[6])
+		# solutions.append(sol)
 
 
 	# solutions = [(id_to_names_map[index_to_id_map[v[0]]],
@@ -270,16 +329,18 @@ def overlaps(S_dict, arguments):
 '''SCRIPT BEGIN'''
 
 
-arguments = Arguments(indels=False, inclusions=True, inverts=True, e=0.002, thresh=5)
+arguments = Arguments(indels=False, inclusions=False, inverts=True, e=0.22, thresh=5)
 
 
 x = rd('data/basic.fasta')
 print(x)
 # exit(1)
 # S_dict = x
-S_dict = {0:'aaaaabbbbb', 1:'bbbbbccccc', 2:'cccccddddd', 3:'xxxxxxx'}
+S_dict = {0:'AAAAABBBBB', 1:'BBBBBCCCCC', 2:'CCCCCDDDDD', 3:'XXXXXXXXXX'}
 # S_dict = {0:'hannahismyname', 1:'igobyhannah', 2:'hanahisavalidspelling', 3:'spellingisfun'}
 solutions = overlaps(S_dict, arguments)
-print('\n\n====SOLUTIONS====\n\n')
-for sol in solutions:
-	print_solution(sol)
+# print('\n\n====SOLUTIONS====\n\n')
+# for sol in solutions:
+# 	print_solution(sol)
+
+#TODO output in proper format, printing to file

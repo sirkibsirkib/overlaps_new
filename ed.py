@@ -7,8 +7,8 @@
 # 	return min(a, b, c)
 
 def cigar_string(x, y, mat):
-	print('cigar_string', x, y)
-	print(mat)
+	# print('cigar_string', x, y)
+	# print(mat)
 	cigar = ''
 	i = len(y)
 	j = len(x)

@@ -1,4 +1,5 @@
 import math
+import time
 
 
 '''
@@ -13,14 +14,15 @@ def get_block_lengths_and_filters(patt_length, e, thresh):
 	p_ = [math.ceil(l * 1.0 / (math.ceil(e * l) + 1))
 		  for l in range(thresh, patt_length+1)]
 	p = min(p_)
-	# print('p_', p_)
+	print('p_', p_)
+	print('p', p)
 	remain = patt_length
 	block_lengths = []
 	while (remain > 0):
 		next = min(remain, p)
 		block_lengths.append(next)
 		remain -= next
-	# print('part_lengths', block_lengths)
+	print('part_lengths', block_lengths)
 
 	filters = []
 	for i in range(len(block_lengths)-1):
@@ -29,10 +31,11 @@ def get_block_lengths_and_filters(patt_length, e, thresh):
 		else:
 			filters.append(list(range(0, len(block_lengths)-i)))
 
-	# print('block_lengths', block_lengths)
-	# print('filters')
-	# for f in filters:
-	# 	print(f)
+	print('block_lengths', block_lengths)
+	print('filters')
+	for f in filters:
+		print(f)
+	time.sleep(2)
 	return block_lengths, filters
 
 

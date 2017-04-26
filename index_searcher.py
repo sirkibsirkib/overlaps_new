@@ -151,6 +151,11 @@ class FMIndex:
 		# print('fuck_knows', fuck_knows)
 		return fuck_knows
 
+
+	def new_candidate(self, a_index, b_index, a_ovr, b_ovr, b_tail, debug_str):
+		return (a_index, b_index, a_ovr, b_ovr, b_tail, debug_str)
+
+
 	'''
 	to simulate forward search using backward search...
 	everything is forward
@@ -174,9 +179,24 @@ class FMIndex:
 			a = '$'
 			sp_ = 0 + self.rank(a, sp)
 			ep_ = 0 + self.rank(a, ep + 1) - 1
-			for x in [(self.string_start_in_not_backwards_T(self.sSAT[i]), p_T_index, p_i_next, p_i_next-pref_len+suff_len) # candidate: (suff_index, pref_index, suff_ovr, pref_ovr)
-					  for i in range(sp_, ep_ + 1)]:
-				print('CAND', x)
+			a_ovr = pref_len + p_i_start
+			b_ovr = suff_len + p_i_start
+			debug_string = 'MATCHED[{}] matched_pref[{}] matched_suff[{}]'.format(MATCHED, a_ovr, b_ovr)
+			# debug_string = ''
+			for i in range(sp_, ep_ + 1):
+				x = self.new_candidate(a_index=p_T_index,
+									   b_index=self.string_start_in_not_backwards_T(self.sSAT[i]),
+									   a_ovr=a_ovr,
+									   b_ovr=b_ovr,
+									   b_tail=0,
+									   debug_str=debug_string
+									   )
+
+				# x = (self.string_start_in_not_backwards_T(self.sSAT[i]), p_T_index, p_i_next, p_i_next-pref_len+suff_len, 'MATCHED[{}] matched_pref[{}] matched_suff[{}]'.format(MATCHED, match_pref_len, match_suff_len))
+			# for x in [(self.string_start_in_not_backwards_T(self.sSAT[i]), p_T_index, p_i_next,
+			# 		   p_i_next-pref_len+suff_len, MATCHED) # candidate: (suff_index, pref_index, suff_ovr, pref_ovr)
+			# 		  for i in range(sp_, ep_ + 1)]:
+				# print('CAND', x)
 				if x[0] != x[1]:
 					if x not in self.candidate_set:
 						self.candidate_set.add(x)
@@ -186,13 +206,13 @@ class FMIndex:
 		# count node
 		self.nodes += 1
 		if self.nodes % 100000 == 0:
-			print('nodes: ', self.nodes/1000000, 'mil')
+			print('\nnodes: ', self.nodes/1000000, 'mil')
 			print('matched so far:', '['+(p_i_start*'*')+MATCHED+']   sp:', sp, 'ep', ep)
 			print('>>>', MATCHED.replace('_', '').upper())
 			print('p_i_next', p_i_next, 'p_i_end', p_i_end, 'err', errors, 'allowed_err', error_lookup[p_i_next])
 
 		if self.arguments.indels and errors < error_lookup[p_i_next-p_i_start]:
-			#insertion
+			# INSERTION
 			if indel_balance >= 0:
 				for a in self.sorted_alphabet:
 					sp_ = self.C[a] + self.rank(a, sp)
@@ -204,20 +224,22 @@ class FMIndex:
 		if p_i_next >= p_i_end-1:
 			# INCLUSIONS!!!
 			if self.arguments.inclusions:
-				for x in [(self.index_inside_to_front_not_backwards(self.sSAT[i]), p_T_index, p_i_next,
-						   p_i_next - pref_len + suff_len)  # candidate: (suff_index, pref_index, suff_ovr, pref_ovr)
-						  for i in range(sp, ep + 1)]:
-					print('INCLUSION DETECTED', x) #TODO translate the midway index
-					print('GOD DAMN IT THIS DOESNT VERIFY AT ALL')
-					if x[0] != x[1]:
-						if x not in self.candidate_set:
-							self.candidate_set.add(x)
-						else:
-							self.duplicate_candidate_count += 1
+				print('FIX INCLUSIONS U STUPID')
+				exit(1)
+				# for x in [(self.index_inside_to_front_not_backwards(self.sSAT[i]), p_T_index, p_i_next,
+				# 		   p_i_next - pref_len + suff_len, MATCHED)  # candidate: (suff_index, pref_index, suff_ovr, pref_ovr)
+				# 		  for i in range(sp, ep + 1)]:
+				# 	print('INCLUSION DETECTED', x) #TODO translate the midway index
+				# 	print('GOD DAMN IT THIS DOESNT VERIFY AT ALL')
+				# 	if x[0] != x[1]:
+				# 		if x not in self.candidate_set:
+				# 			self.candidate_set.add(x)
+				# 		else:
+				# 			self.duplicate_candidate_count += 1
 			return
 
 		for a in self.sorted_alphabet:
-			# substitution
+			# SUBSTITUTION
 			sp_ = self.C[a] + self.rank(a, sp)
 			ep_ = self.C[a] + self.rank(a, ep + 1) - 1
 			errors_ = errors if p[p_i_next] == a else errors + 1
@@ -226,7 +248,7 @@ class FMIndex:
 						errors_, error_lookup, block_id_lookup, MATCHED+a, 0, suff_len+1, pref_len+1)
 
 		if self.arguments.indels and errors < error_lookup[p_i_next-p_i_start]:
-			# deletion
+			# DELETION
 			if indel_balance <= 0 and p_i_next < p_i_end-2:
 				self.forward(p, p_i_start, p_i_next + 1, p_i_end, sp, ep, p_T_index, p_id,
 							 errors + 1, error_lookup, block_id_lookup, MATCHED + '_', indel_balance-1, suff_len, pref_len+1)
@@ -236,5 +258,5 @@ class FMIndex:
 	def forward_search(self, p, p_i_start, p_T_index, p_id, error_lookup,
 					   block_id_lookup):
 		self.forward(p, p_i_start, p_i_start, len(p), 0, len(self.L)-1, p_T_index, p_id,
-					 0, error_lookup, block_id_lookup, '', 0, 0, 0)
+					 0, error_lookup, block_id_lookup, '?'*p_i_start, 0, 0, 0)
 
