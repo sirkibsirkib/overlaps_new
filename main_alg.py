@@ -4,9 +4,10 @@ import time
 import kucherov as specific
 from ed import distance_alignment as edit_distance
 from prog_args import Arguments
-from read_data import rd
+import prog_io
 import debug_aux
 import math
+import prog_alphabet
 
 from index_searcher import FMIndex as fm_index
 
@@ -178,7 +179,10 @@ def verifies(candidate, T, b_len, arguments):
 		b_ovr_start = b_index - b_ovr - b_tail + b_len
 		# print(candidate)
 		a_ovr_string = T[a_index : a_index + a_ovr]
-		b_ovr_string = T[b_ovr_start : b_index + b_ovr - b_tail]
+		b_ovr_string = T[b_ovr_start : b_index + b_ovr]
+
+		print('a_ovr_string', a_ovr_string)
+		print('b_ovr_string', b_ovr_string)
 
 		if arguments.indels:
 			ed, cigar = edit_distance(a_ovr_string, b_ovr_string)
@@ -203,38 +207,42 @@ def get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map
 
 		if k != -1: #-1 errors means 'too many to verify'
 			#solution accepted
-			print('\n\n\n>')
+			# print('\n\n\n>')
 			a_len = index_to_length_map[candidate[0]]
 			a_index, b_index, a_ovr, b_ovr, b_tail, debug_str = candidate
-			print('pref', T[a_index:a_index+a_len])
-			print('suff', T[b_index:b_index+b_len])
 			a_id = index_to_id_map[a_index]
 			b_id = index_to_id_map[b_index]
-
+			# print(a_id, 'pref', T[a_index:a_index+a_len])
+			# print(b_id, 'suff', T[b_index:b_index+b_len])
 
 			OLA = a_ovr
 			OLB = b_ovr
 			OHA = -(a_len - a_ovr)
 			OHB = -(b_len - b_ovr) if b_tail == 0 else b_tail
-			if a_id % 2 == 1:
-				OHA *= -1
-				OHB *= -1
-				a_id, b_id = b_id, a_id
+			if arguments.inverts and a_id % 2 == 1:
+				# OHA *= -1
+				# OHB *= -1
+				print('flip before', a_id, b_id)
+				a_id, b_id = b_id-1 if b_id%2==1 else b_id+1, a_id-1
+				print('flip after', a_id, b_id)
 
 			CIGAR = cigar
 			K = k
-			O = 'N' if b_id%2==0 else 'I'
+			O = 'N' if not arguments.inverts or b_id%2==0 else 'I'
 			a_name = id_to_names_map[a_id]
 			b_name = id_to_names_map[b_id]
 			solution = (a_name, b_name, O, OHA, OHB, OLA, OLB, K, CIGAR)
-			print('a\tb\tO\tOHA\tOHB\tOLA\tOLB\tK\tCIG')
-			print(*solution, sep='\t')
-			print(candidate)
-			print(' ==> ', solution)
-			print(' '*(-OHA), S_dict[a_name])
-			second = S_dict[b_name] if O=='N' else S_dict[b_name][::-1]
-			print(' '*OHA, second)
+			solution_set.add(solution)
 
+	for solution in sorted(solution_set):
+		a_name, b_name, O, OHA, OHB, OLA, OLB, K, CIGAR = solution
+		print('a\tb\tO\tOHA\tOHB\tOLA\tOLB\tK\tCIG')
+		print(*solution, sep='\t')
+		print(solution)
+		print(' ==> ', solution)
+		print(' ' * (-OHA), S_dict[a_name])
+		second = S_dict[b_name] if O == 'N' else S_dict[b_name][::-1]
+		print(' ' * OHA, second)
 	return sorted(solution_set)
 
 '''
@@ -260,7 +268,7 @@ def overlaps(S_dict, arguments):
 	S = [S_dict[id_to_names_map[key]] for key in id_to_names_map.keys()]\
 		if not arguments.inverts\
 		else [S_dict[id_to_names_map[key]]
-			  if key%2==0 else S_dict[id_to_names_map[key]][::-1]
+			  if key%2==0 else prog_alphabet.invert(S_dict[id_to_names_map[key]])
 			  for key in id_to_names_map.keys()]
 
 	print(S)
@@ -310,18 +318,31 @@ def overlaps(S_dict, arguments):
 '''SCRIPT BEGIN'''
 
 
-arguments = Arguments(indels=False, inclusions=False, inverts=True, e=0.22, thresh=5)
+arguments = Arguments(indels=False,
+					  inclusions=True,
+					  inverts=False,
+					  e=0.1,
+					  thresh=20,
+					  in_path='data/basic.fasta',
+					  out_path='data/basic_out.txt')
 
 
-x = rd('data/basic.fasta')
+x = prog_io.rd(arguments.in_path)
 print(x)
 # exit(1)
-# S_dict = x
-S_dict = {0:'AAAAABBBBB', 1:'BBBBBCCCCC', 2:'CCCCCDDDDD', 3:'XXXXXXXXXX'}
-# S_dict = {0:'hannahismyname', 1:'igobyhannah', 2:'hanahisavalidspelling', 3:'spellingisfun'}
+S_dict = x
+# S_dict = {0:'ACCGGGTTTT'}
 solutions = overlaps(S_dict, arguments)
-# print('\n\n====SOLUTIONS====\n\n')
-# for sol in solutions:
-# 	print_solution(sol)
+print('\n\n====SOLUTIONS====\n\n')
+with open(arguments.out_path, "w") as text_file:
+	text_file.write('ID1\tID2\tO\tOHA\tOHB\tOLA\tOLB\tK\tCIG\n')
+	for sol in solutions:
+		text_file.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(*sol))
+		print(' + overlap length', '{}/{}'.format(sol[5], sol[6]))
+	text_file.close()
+	print('WRITE DONE! wrote {} solutions!'.format(len(solutions)))
+for sol in solutions:
+
+	print_solution(sol)
 
 #TODO output in proper format, printing to file

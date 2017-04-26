@@ -1,14 +1,16 @@
 TODO:
 
+debug indels not finding all solutions. probably some silly off-by-one somewhere
+solutions found not deterministic! problem somewhere
+check correctness of basic.fasta
 correctness of error-capping
-fix and proof the output
+proof the output
 better function to map $ at end of found (suff) string to the start index of that string (aka string_start_in_not_backwards_T)
 better function to map index anywhere inside found (suff) string to the start index of that string (aka string_start_in_not_backwards_T)
 un-confuse the mapping process and standardise things in general
 edit distance algorithm should use magical bit whatever to be faster
 clean up all that mapping business inside the overlaps() function
 program start and arguments cleaned up
-output to file instead of console
 annotate the code a bit more
 clean up the vars saved and created when index is created
 checkpoints rank lookup needs to be sped up

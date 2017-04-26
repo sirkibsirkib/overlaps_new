@@ -118,12 +118,18 @@ class FMIndex:
 	return the index of the beginning of THAT string in NOT backwards T
 	'''
 	def index_inside_to_front_not_backwards(self, x):
-		first_higher = self.next_dollar_sign_at[0]
+		print(self.T)
+		print(debug_aux.carat_chars([x], 40))
+		first_lower = self.next_dollar_sign_at[0]
 		for v in self.next_dollar_sign_at:
-			if v > x:
-				highest_lower = v
+			if v < x:
+				first_lower = v
+			else:
 				break
-		return self.string_start_in_not_backwards_T(first_higher)
+		preceding_dollar_index = self.string_start_in_not_backwards_T(first_lower)
+		print(self.T)
+		print(debug_aux.carat_chars([first_lower], 40))
+		return preceding_dollar_index, x - first_lower - 1
 
 	'''
 	given the index of a dollar sign in the index's version of T (which is reversed)
@@ -174,6 +180,43 @@ class FMIndex:
 		if sp >= ep:
 			return
 
+		# no more characters in patt to match
+		if p_i_next >= p_i_end :
+			# INCLUSIONS!!!
+			if self.arguments.inclusions:
+				for i in range(sp, ep + 1):
+					a_ovr = pref_len + p_i_start
+					b_ovr = suff_len + p_i_start
+					b_index, b_tail = self.index_inside_to_front_not_backwards(self.sSAT[i])
+					print('INCLUSION')
+					print('b_index', b_index)
+					print('b_tail', b_tail)
+					x = self.new_candidate(a_index=p_T_index,
+										   b_index=b_index,
+										   a_ovr=a_ovr,
+										   b_ovr=b_ovr,
+										   b_tail=b_tail,
+										   debug_str='INCL:' + MATCHED
+										   )
+					if x[0] != x[1]:
+						if x not in self.candidate_set:
+							self.candidate_set.add(x)
+						else:
+							self.duplicate_candidate_count += 1
+						# print('FIX INCLUSIONS U STUPID')
+						# exit(1)
+						# for x in [(self.index_inside_to_front_not_backwards(self.sSAT[i]), p_T_index, p_i_next,
+						# 		   p_i_next - pref_len + suff_len, MATCHED)  # candidate: (suff_index, pref_index, suff_ovr, pref_ovr)
+						# 		  for i in range(sp, ep + 1)]:
+						# 	print('INCLUSION DETECTED', x) #TODO translate the midway index
+						# 	print('GOD DAMN IT THIS DOESNT VERIFY AT ALL')
+						# 	if x[0] != x[1]:
+						# 		if x not in self.candidate_set:
+						# 			self.candidate_set.add(x)
+						# 		else:
+						# 			self.duplicate_candidate_count += 1
+			return
+
 		# add candidate overlaps for positions followed by '$'
 		if self.condition_met_f(p_i_start, max(p_i_next, p_i_next-pref_len+suff_len), self.arguments.thresh, block_id_lookup[p_i_next-p_i_start], errors):
 			a = '$'
@@ -191,12 +234,6 @@ class FMIndex:
 									   b_tail=0,
 									   debug_str=debug_string
 									   )
-
-				# x = (self.string_start_in_not_backwards_T(self.sSAT[i]), p_T_index, p_i_next, p_i_next-pref_len+suff_len, 'MATCHED[{}] matched_pref[{}] matched_suff[{}]'.format(MATCHED, match_pref_len, match_suff_len))
-			# for x in [(self.string_start_in_not_backwards_T(self.sSAT[i]), p_T_index, p_i_next,
-			# 		   p_i_next-pref_len+suff_len, MATCHED) # candidate: (suff_index, pref_index, suff_ovr, pref_ovr)
-			# 		  for i in range(sp_, ep_ + 1)]:
-				# print('CAND', x)
 				if x[0] != x[1]:
 					if x not in self.candidate_set:
 						self.candidate_set.add(x)
@@ -220,23 +257,7 @@ class FMIndex:
 					self.forward(p, p_i_start, p_i_next, p_i_end, sp_, ep_, p_T_index, p_id,
 								 errors + 1, error_lookup, block_id_lookup, MATCHED + a.lower(), indel_balance+1, suff_len+1, pref_len)
 
-		# no more characters in patt to match
-		if p_i_next >= p_i_end-1:
-			# INCLUSIONS!!!
-			if self.arguments.inclusions:
-				print('FIX INCLUSIONS U STUPID')
-				exit(1)
-				# for x in [(self.index_inside_to_front_not_backwards(self.sSAT[i]), p_T_index, p_i_next,
-				# 		   p_i_next - pref_len + suff_len, MATCHED)  # candidate: (suff_index, pref_index, suff_ovr, pref_ovr)
-				# 		  for i in range(sp, ep + 1)]:
-				# 	print('INCLUSION DETECTED', x) #TODO translate the midway index
-				# 	print('GOD DAMN IT THIS DOESNT VERIFY AT ALL')
-				# 	if x[0] != x[1]:
-				# 		if x not in self.candidate_set:
-				# 			self.candidate_set.add(x)
-				# 		else:
-				# 			self.duplicate_candidate_count += 1
-			return
+
 
 		for a in self.sorted_alphabet:
 			# SUBSTITUTION
