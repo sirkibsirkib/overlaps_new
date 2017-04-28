@@ -9,40 +9,44 @@ import debug_aux
 import math
 import prog_alphabet
 import cigar_strings
-
+import random
 from index_searcher import FMIndex as fm_index
+
 
 '''AUX FUNCTIONS and CLASSES'''
 
 
-def print_solution(solution, S_dict):
-	print('\n')
-	# print(solution)
+def print_solution(solution, S_dict, debug=True):
+	if debug:
+		print(solution)
+		print('S_dict', S_dict)
 	a_name, b_name, O, OHA, OHB, OLA, OLB, K, CIGAR = solution
 	a = S_dict[a_name]
-	b = S_dict[b_name] if O == 'N' else S_dict[b_name][::-1]
+	b = S_dict[b_name] if O == 'N' else prog_alphabet.invert(S_dict[b_name])
+	if debug:
+		print('a', a, 'b', b)
 
-	a1 = a2 = a3 = ''
-	b1 = b2 = b3 = ''
-	if OHA > 0:
-		a1 = a[:OHA]
-		a = a[OHA:]
-	else:
-		b1 = b[:-OHA]
-		b = b[-OHA:]
-	a2 = a[:OLA]
-	a3 = a[OLA:]
-	b2 = b[:OLB]
-	b3 = b[OLB:]
+	if OHA > 0: a1 = OHA;	b1 = 0
+	else:		a1 = 0;		b1 = -OHA
+	a2 = OLA
+	b2 = OLB
+	if OHB > 0: a3 = 0;		b3 = OHB
+	else:		a3 = -OHB;	b3 = 0
+	if debug:
+		print(a1,a2,a3)
+		print(' '*b1 + '[' + a[:a1] + '|' + a[a1:a1+a2] + '|' + a[a1+a2:] + ']')
+		print(b1,b2,b3)
+		print(' '*a1 + '[' + b[:b1] + '|' + b[b1:b1+b2] + '|' + b[b1+b2:] + ']')
+	assert a1+a2+a3 == len(a)
+	assert b1+b2+b3 == len(b)
 
-	# print('['+a1 +'|'+a2+'|'+a3+']')
-	# print('['+b1 +'|'+b2+'|'+b3+']')
-	a2_align, b2_align = cigar_strings.align_using_cigar(a2, b2, CIGAR)
 
-	print('a\tb\tO\tOHA\tOHB\tOLA\tOLB\tK\tCIG')
-	print(*solution, sep='\t')
-	print(' ' * (-OHA), a1, a2_align, a3)
-	print(' ' * OHA, b1, b2_align, b3)
+	a2_align, b2_align = CIGAR.align(a[a1:a1+a2], b[b1:b1+b2])
+
+	# print('a\tb\tO\tOHA\tOHB\tOLA\tOLB\tK\tCIG')
+	# print(*solution, sep='\t')
+	print(' ' * (-OHA), a[:a1], a2_align, a[a1+a2:])
+	print(' ' * OHA, b[:b1], b2_align, b[b1+b2:])
 
 def string_id_to_T_index_map(S):
 	ind = 0
@@ -165,54 +169,107 @@ def verifies(candidate, T, b_len, arguments):
 			for i in range(a_ovr):
 				if T[a_index+i] != T[b_ovr_start+i]:
 					err_count += 1
-			return err_count if err_count <= errs_allowed else -1, str(a_ovr) + 'M'
+			return err_count if err_count <= errs_allowed else -1, cigar_strings.cigar_for_match_of_len(a_ovr)
 	except:
 		#out of string bounds exception
 		print('OH CRAP, out of bounds verify!! oh noes!')
 		raise
 
-def get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map, id_to_names_map, arguments):
+def companion_index(x):
+	if x%2==0: return x+1
+	return x-1
+
+def redundant_solutions(a, b):
+	for i in range(len(a)-1): #chop off cigar
+		if a[i] != b[i]:
+			return False
+	print("REDUNDANT!")
+	print(a)
+	print(b)
+	return True
+
+def sort_and_deduplicate_solutions(solution_set):
+	ret = []
+	p = None,None,None,None,None,None,None,None,None
+	for x in sorted(solution_set):
+		if not redundant_solutions(p, x):
+			ret.append(x)
+			p = x
+	return ret
+
+def get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map, id_to_names_map, id_to_index_map, arguments):
 	solution_set = set()
 	for candidate in candidate_set:
+		time.sleep(.2)
+		print('\n\n\n >')
 		print('cand', candidate)
 		b_len = index_to_length_map[candidate[1]]
 		k, cigar = verifies(candidate, T, b_len, arguments)
+		a_len = index_to_length_map[candidate[0]]
+
+		a_index, b_index, a_ovr, b_ovr, b_tail, debug_str = candidate
+		print(T)
+		print(debug_aux.carat_chars(range(a_index, a_index + a_len), len(T) + 5))
+		print(debug_aux.carat_chars(range(b_index, b_index + b_len), len(T) + 5))
 
 		if k != -1: #-1 errors means 'too many to verify'
-			print('\n\n\n >')
-			print('cand', candidate)
 			#solution accepted
 			# print('\n\n\n>')
-			a_len = index_to_length_map[candidate[0]]
-			a_index, b_index, a_ovr, b_ovr, b_tail, debug_str = candidate
 			a_id = index_to_id_map[a_index]
 			b_id = index_to_id_map[b_index]
+			if b_ovr+b_tail > b_len:
+				#blind spot overlapping ???[MMMMM]~~~~~~~~
+				#                         ~~MMMMM
+				print('blind spot overlapping! DISCARD')
+				continue
 			# print(a_id, 'pref', T[a_index:a_index+a_len])
 			# print(b_id, 'suff', T[b_index:b_index+b_len])
 			print('b_tail!!!', b_tail)
 			OLA = a_ovr
 			OLB = b_ovr
-			OHA = -(b_len - b_ovr) if b_tail == 0 else -(b_len - b_tail - b_ovr)
-			OHB = -(a_len - a_ovr) if b_tail == 0 else b_tail
-			print('initOHA', OHA)
-			print('initOHB', OHB)
+			if b_tail == 0:
+				OHA = -(b_len-b_ovr)
+				OHB = -(a_len-a_ovr)
+			else:
+				OHA = -(b_len - b_tail - b_ovr)
+				OHB = b_tail
+			# OHA = -(b_len - b_ovr) if b_tail == 0 else -(b_len - b_tail - b_ovr)
+			# OHB = -(a_len - a_ovr) if b_tail == 0 else b_tail
 			print('initIDS', a_id, b_id)
+			print(T)
+			print(' :  ', '^'*-OHA + T[a_index:a_index+a_len] + '*'*(b_ovr-a_ovr) + '~'*OHB)
+			print(' :  ', '^'*OHA + T[b_index:b_index+b_len] + '*'*(a_ovr-b_ovr) + '~'*-OHB)
+
+
+			# TODO incoming a_id = 1, b_id = 4
+			# TODO vflip or hflip? or what
 
 			if a_id > b_id:	# ensure smaller string comes first
-				print('smaller first!')
+				print('smaller first! VFLIP')
 				OHA *= -1
 				OHB *= -1
+				a_len, b_len = b_len, a_len
 				a_id, b_id, OLA, OLB = b_id, a_id, OLB, OLA
-				cigar = cigar_strings.flip_cigar(cigar)
-
+				a_index, b_index = b_index, a_index
+				cigar.v_flip()
+			print('tIDS', a_id, b_id)
+			print(T)
+			print(' :  ', '^' * -OHA + T[a_index:a_index + a_len] + '*' * (b_ovr - a_ovr) + '~' * OHB)
+			print(' :  ', '^' * OHA + T[b_index:b_index + b_len] + '*' * (a_ovr - b_ovr) + '~' * -OHB)
 			if arguments.inverts and a_id % 2 == 1:	#guarantee not BOTH are flipped
-				print('rotate!')
-				OHA, OHB = OHB, OHA
-				print('flip before', a_id, b_id)
-				a_id, b_id = b_id-1 if b_id%2==1 else b_id+1, a_id-1
-				print('flip after', a_id, b_id)
-				cigar = cigar_strings.rotate_cigar(cigar)
+				print('a must be non-neg! HFLIP')
+				OHA, OHB = -OHB, -OHA
+				a_id = companion_index(a_id)
+				b_id = companion_index(b_id)
+				a_index = id_to_index_map[a_id]
+				b_index = id_to_index_map[b_id]
+				cigar.h_flip()
 
+			print('TRANSFORMS COMPLETE')
+			print('tIDS', a_id, b_id)
+			print(T)
+			print(' :  ', '^'*-OHA + T[a_index:a_index+a_len] + '*'*(b_ovr-a_ovr) + '~'*OHB)
+			print(' :  ', '^'*OHA + T[b_index:b_index+b_len] + '*'*(a_ovr-b_ovr) + '~'*-OHB)
 			CIGAR = cigar
 			K = k
 			O = 'N' if not arguments.inverts or b_id%2==0 else 'I'
@@ -221,10 +278,14 @@ def get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map
 			solution = (a_name, b_name, O, OHA, OHB, OLA, OLB, K, CIGAR)
 			print_solution(solution, S_dict)
 			solution_set.add(solution)
+		else:
+			print('DID NOT VERIFY. TOO MANY ERRORS')
 
-	# for solution in sorted(solution_set):
-	# 	print_solution(solution, S_dict)
-	return sorted(solution_set)
+
+	deduplicated = sort_and_deduplicate_solutions(solution_set)
+	print(len(solution_set), 'solutions')
+	print(len(deduplicated), 'solutions after deduplication')
+	return deduplicated
 
 '''
 Given S_dict, a dict with values being strings.
@@ -282,9 +343,10 @@ def overlaps(S_dict, arguments):
 	t2 = time.clock()
 	print('step1 time', t2-t1)
 	#STEP 2
-	solution_set = get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map, id_to_names_map, arguments)
+	solution_set = get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map, id_to_names_map, id_to_index_map, arguments)
 
 	t3 = time.clock()
+	print('\n\n\n ------->')
 	print('step2 time', t3-t2)
 	# print('candidate_set', candidate_set)
 	# print('verified_set', verified_set)
@@ -293,37 +355,39 @@ def overlaps(S_dict, arguments):
 	print('step 1 precision', len(solution_set) / (len(candidate_set)) if len(candidate_set) > 0 else 1)
 	print('verified set', solution_set)
 
-	return sorted(solution_set)
+	return solution_set
 
 
 '''SCRIPT BEGIN'''
 
 
-arguments = Arguments(indels=False,
+arguments = Arguments(indels=True,
 					  inclusions=True,
-					  inverts=False,
-					  e=0.02,
-					  thresh=20,
+					  inverts=True,
+					  e=0.27,
+					  thresh=5,
 					  in_path='data/basic.fasta',
 					  out_path='data/basic_out.txt')
 
 
+
+random.seed(400)
 x = prog_io.rd(arguments.in_path)
 print(x)
 # exit(1)
-S_dict = x
-# S_dict = {0:'AAAAAGGGGGGGGG', 1:'GTGGTCCCCCAAAAA', 2:'CCCCC'}
+# S_dict = x
+S_dict = {0:'AAAAAGGGGGGGGG', 1:'GTGGTCCCCCAAAAA', 2:'CCCCC'}
 solutions = overlaps(S_dict, arguments)
 print('\n\n====SOLUTIONS====\n\n')
 with open(arguments.out_path, "w") as text_file:
 	text_file.write('ID1\tID2\tO\tOHA\tOHB\tOLA\tOLB\tK\tCIG\n')
 	for sol in solutions:
-		print_solution(sol, S_dict)
 		text_file.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(*sol))
 	text_file.close()
 	print('WRITE DONE! wrote {} solutions!'.format(len(solutions)))
 
-print('\n\n\n====== SOLUTIONS =======\n\n\n')
+# print('not printing')
 for sol in solutions:
-	print_solution(sol, S_dict)
+	print()
+	print_solution(sol, S_dict, debug=False)
 #TODO output in proper format, printing to file

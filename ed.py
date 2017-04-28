@@ -1,3 +1,6 @@
+import cigar_strings
+import random
+
 # def ed(x, y):
 # 	if len(x) == 0 or len(y) == 0:
 # 		return abs(len(x) - len(y))
@@ -6,10 +9,10 @@
 # 	c = ed(x, y[:-1]) + 1
 # 	return min(a, b, c)
 
-def cigar_string(x, y, mat):
+def get_cigar_seq(x, y, mat):
 	# print('cigar_string', x, y)
 	# print(mat)
-	cigar = ''
+	cigar_seq = []
 	i = len(y)
 	j = len(x)
 	old_c = None
@@ -36,12 +39,13 @@ def cigar_string(x, y, mat):
 
 		if c != old_c:
 			if old_c  != None:
-				cigar = str(count) + old_c + cigar
+				cigar_seq.append((count, old_c))
 			old_c = c
 			count = 0
 		count += 1
-	c = str(count) + old_c + cigar
-	return c
+
+	cigar_seq.append((count, old_c))
+	return cigar_strings.Cigar(cigar_seq[::-1])
 
 
 def distance_alignment(x, y):
@@ -56,14 +60,11 @@ def distance_alignment(x, y):
 			right	= mat[i - 1][j] + 1
 			down	= mat[i][j - 1] + 1
 			across 	= mat[i - 1][j - 1] + delta
-			act = 'D'
 			mn = right
 			if down < mn:
 				mn = down
-				act = 'I'
 			if across < mn:
 				mn = across
-				act = 'M'
 			mat[i][j] = mn
 
-	return mat[-1][-1], cigar_string(x, y, mat)
+	return mat[-1][-1], get_cigar_seq(x, y, mat)

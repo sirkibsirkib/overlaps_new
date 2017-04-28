@@ -1,4 +1,5 @@
 import debug_aux
+import cigar_strings
 
 def sorted_alphabet_of(T):
 	s = set()
@@ -269,7 +270,7 @@ class FMIndex:
 			ep_ = 0 + self.rank(a, ep + 1) - 1
 			a_ovr = pref_len + p_i_start
 			b_ovr = suff_len + p_i_start
-			debug_string = 'MATCHED[{}] matched_pref[{}] matched_suff[{}]'.format(MATCHED, a_ovr, b_ovr)
+			debug_string = 'MATCHED[{}] patt[{}]'.format(MATCHED, p[:p_i_end])
 			# debug_string = ''
 			for i in range(sp_, ep_ + 1):
 				b_index = self.string_start_in_not_backwards_T(self.sSAT[i])
