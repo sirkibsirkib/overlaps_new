@@ -37,12 +37,11 @@ class FMIndex:
 	#F is the FIRST col of BW matrix
 	#	C is the compact representation of F, with start indexes for each alphabet letter
 	#sSAT is the Suffix Array mapping where each suffix row occurs in the original string
-	def __init__(self, T, candidate_set, condition_met_f, arguments, index_to_id_map, id_to_index_map, len_S):
+	def __init__(self, T, candidate_set, condition_met_f, arguments, mappings, len_S):
 		self.arguments = arguments
+		self.mappings = mappings
 		self.candidate_set = candidate_set
 		self.condition_met_f = condition_met_f
-		self.index_to_id_map = index_to_id_map
-		self.id_to_index_map = id_to_index_map
 		self.len_S = len_S
 
 		self.nodes = 0
@@ -155,7 +154,7 @@ class FMIndex:
 		normal_x = len(self.T)-x-1
 		# print(self.normalT)
 		# print(debug_aux.carat_chars([normal_x], len(self.normalT)+10))
-		ind = self.id_to_index_map[(self.index_to_id_map[normal_x] - 1)% self.len_S]
+		ind = self.mappings.id2index[(self.mappings.index2id[normal_x] - 1)% self.len_S]
 		# print(debug_aux.carat_chars([ind], len(self.normalT)+10))
 		return ind
 

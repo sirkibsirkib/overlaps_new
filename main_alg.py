@@ -81,7 +81,7 @@ def find_candidates(S, T, arguments, mappings):
 	print('id_to_index_map', mappings.id2index)
 	print('index_to_id_map', mappings.index2id)
 	candidate_set = set()
-	index = fm_index(T, candidate_set, specific.conditions_met, arguments, mappings.index2id, mappings.id2index, len(S))
+	index = fm_index(T, candidate_set, specific.conditions_met, arguments, mappings, len(S))
 	for p_id, patt in enumerate(S):
 		if len(patt) < arguments.thresh:
 			#skip patterns too small to match
@@ -130,7 +130,7 @@ def output_tuple():
 	pass
 
 
-def remove_reflexive_candidates(candidates, arguments, index_to_id_map, id_to_names_map):
+def remove_reflexive_candidates(candidates, arguments, mappings):
 	if not arguments.inverts:
 		# print('A CASE')
 		return {x for x in candidates if x[0] != x[1]}
@@ -138,11 +138,11 @@ def remove_reflexive_candidates(candidates, arguments, index_to_id_map, id_to_na
 		# print('B CASE')
 		ret = set()
 		for x in candidates:
-			id_a = index_to_id_map[x[0]]
-			id_b = index_to_id_map[x[1]]
+			id_a = mappings.index2id[x[0]]
+			id_b = mappings.index2id[x[1]]
 
 			#if not matching a string with itself (flipped or otherwise)
-			if (id_to_names_map[id_a] != id_to_names_map[id_b]):
+			if (mappings.id2names[id_a] != mappings.id2names[id_b]):
 				ret.add(x)
 		return ret
 
@@ -342,7 +342,7 @@ def overlaps(S_dict, arguments):
 	print('candidate_set', candidate_set)
 	print('index_to_id_map',index2id)
 
-	candidate_set = remove_reflexive_candidates(candidate_set, arguments, index2id, id2names)
+	candidate_set = remove_reflexive_candidates(candidate_set, arguments, mappings)
 
 
 	t2 = time.clock()
