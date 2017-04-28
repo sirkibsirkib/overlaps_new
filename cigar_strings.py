@@ -5,22 +5,27 @@ class Cigar:
 		self.cigar_seq = cigar_seq
 
 	def h_flip(self):
-		before = str(self)
+		# before = str(self)
 		self.cigar_seq = self.cigar_seq[::-1]
-		print(before, '--hflip-->', str(self))
+		# print(before, '--hflip-->', str(self))
 
 	def v_flip(self):
-		before = str(self)
+		# before = str(self)
 		self.cigar_seq = [(n, cigar_code_invert[code]) for (n, code) in self.cigar_seq]
-		print(before, '--vflip-->', str(self))
+		# print(before, '--vflip-->', str(self))
 
 	def rotate(self):
 		before = str(self)
 		self.cigar_seq = [(n, cigar_code_invert[code], n) for (n, code) in self.cigar_seq][::-1]
-		print(before, '--rot-->', str(self))
+		# print(before, '--rot-->', str(self))
 
 	def __repr__(self):
-		return ''.join([str(n) + code for n, code in self.cigar_seq])
+		try:
+			return ''.join([str(n) + code for (n, code) in self.cigar_seq])
+
+		except:
+			print(self.cigar_seq)
+			raise
 
 	def __lt__(self, other):
 		return self.cigar_seq < other.cigar_seq
@@ -67,7 +72,7 @@ class Cigar:
 		return a_cigar, b_cigar
 
 def cigar_for_match_of_len(length):
-	return Cigar((length,'M'))
+	return Cigar([(length,'M')])
 
 def cigar_sequence(cigar_str):
 	cig = cigar_str

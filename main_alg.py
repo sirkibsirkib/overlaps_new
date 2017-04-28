@@ -3,7 +3,7 @@ import time
 # import valimaki_2 as specific
 import kucherov as specific
 from ed import distance_alignment as edit_distance
-from prog_args import Arguments
+import structs
 import prog_io
 import debug_aux
 import math
@@ -77,11 +77,11 @@ def block_id_and_error_lookups(suffix_parts, filter):
 	# print('error_lookup', error_lookup)
 	return block_id_lookup, error_lookup
 
-def find_candidates(S, T, id_to_index_map, index_to_id_map, arguments):
-	print('id_to_index_map', id_to_index_map)
-	print('index_to_id_map', index_to_id_map)
+def find_candidates(S, T, arguments, mappings):
+	print('id_to_index_map', mappings.id2index)
+	print('index_to_id_map', mappings.index2id)
 	candidate_set = set()
-	index = fm_index(T, candidate_set, specific.conditions_met, arguments, index_to_id_map, id_to_index_map, len(S))
+	index = fm_index(T, candidate_set, specific.conditions_met, arguments, mappings.index2id, mappings.id2index, len(S))
 	for p_id, patt in enumerate(S):
 		if len(patt) < arguments.thresh:
 			#skip patterns too small to match
@@ -89,7 +89,7 @@ def find_candidates(S, T, id_to_index_map, index_to_id_map, arguments):
 
 		block_lengths, filters = specific.get_block_lengths_and_filters(len(patt), arguments.e, arguments.thresh)
 		assert sum(block_lengths) == len(patt) #making sure partition lengths are sound
-		p_T_index = id_to_index_map[p_id]
+		p_T_index = mappings.id2index[p_id]
 		print("NEXT PATT:")
 		print(T)
 		print(debug_aux.carat_chars([p_T_index], 50))
@@ -131,12 +131,11 @@ def output_tuple():
 
 
 def remove_reflexive_candidates(candidates, arguments, index_to_id_map, id_to_names_map):
-	print('ok')
 	if not arguments.inverts:
-		print('A CASE')
+		# print('A CASE')
 		return {x for x in candidates if x[0] != x[1]}
 	else:
-		print('B CASE')
+		# print('B CASE')
 		ret = set()
 		for x in candidates:
 			id_a = index_to_id_map[x[0]]
@@ -157,8 +156,8 @@ def verifies(candidate, T, b_len, arguments):
 		a_ovr_string = T[a_index : a_index + a_ovr]
 		b_ovr_string = T[b_ovr_start : b_ovr_start + b_ovr]
 
-		print('a_ovr_string', a_ovr_string)
-		print('b_ovr_string', b_ovr_string)
+		# print('a_ovr_string', a_ovr_string)
+		# print('b_ovr_string', b_ovr_string)
 
 		if arguments.indels:
 			ed, cigar = edit_distance(a_ovr_string, b_ovr_string)
@@ -197,33 +196,33 @@ def sort_and_deduplicate_solutions(solution_set):
 			p = x
 	return ret
 
-def get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map, id_to_names_map, id_to_index_map, arguments):
+def get_solutions(candidate_set, S_dict, T, arguments, mappings):
 	solution_set = set()
 	for candidate in candidate_set:
-		time.sleep(.2)
-		print('\n\n\n >')
-		print('cand', candidate)
-		b_len = index_to_length_map[candidate[1]]
+		# time.sleep(.2)
+		# print('\n\n\n >')
+		# print('cand', candidate)
+		b_len = mappings.index2len[candidate[1]]
 		k, cigar = verifies(candidate, T, b_len, arguments)
-		a_len = index_to_length_map[candidate[0]]
+		a_len = mappings.index2len[candidate[0]]
 
 		a_index, b_index, a_ovr, b_ovr, b_tail, debug_str = candidate
-		print(T)
-		print(debug_aux.carat_chars(range(a_index, a_index + a_len), len(T) + 5))
-		print(debug_aux.carat_chars(range(b_index, b_index + b_len), len(T) + 5))
 
 		if k != -1: #-1 errors means 'too many to verify'
 			#solution accepted
-			# print('\n\n\n>')
-			a_id = index_to_id_map[a_index]
-			b_id = index_to_id_map[b_index]
+			print('\n\n\n>')
+			print(T)
+			print(debug_aux.carat_chars(range(a_index, a_index + a_len), len(T) + 5))
+			print(debug_aux.carat_chars(range(b_index, b_index + b_len), len(T) + 5))
+			a_id = mappings.index2id[a_index]
+			b_id = mappings.index2id[b_index]
 			if b_ovr+b_tail > b_len:
 				#blind spot overlapping ???[MMMMM]~~~~~~~~
 				#                         ~~MMMMM
 				print('blind spot overlapping! DISCARD')
 				continue
-			# print(a_id, 'pref', T[a_index:a_index+a_len])
-			# print(b_id, 'suff', T[b_index:b_index+b_len])
+			print(a_id, 'pref', T[a_index:a_index+a_len])
+			print(b_id, 'suff', T[b_index:b_index+b_len])
 			print('b_tail!!!', b_tail)
 			OLA = a_ovr
 			OLB = b_ovr
@@ -233,16 +232,12 @@ def get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map
 			else:
 				OHA = -(b_len - b_tail - b_ovr)
 				OHB = b_tail
-			# OHA = -(b_len - b_ovr) if b_tail == 0 else -(b_len - b_tail - b_ovr)
-			# OHB = -(a_len - a_ovr) if b_tail == 0 else b_tail
+			OHA = -(b_len - b_ovr) if b_tail == 0 else -(b_len - b_tail - b_ovr)
+			OHB = -(a_len - a_ovr) if b_tail == 0 else b_tail
 			print('initIDS', a_id, b_id)
 			print(T)
 			print(' :  ', '^'*-OHA + T[a_index:a_index+a_len] + '*'*(b_ovr-a_ovr) + '~'*OHB)
 			print(' :  ', '^'*OHA + T[b_index:b_index+b_len] + '*'*(a_ovr-b_ovr) + '~'*-OHB)
-
-
-			# TODO incoming a_id = 1, b_id = 4
-			# TODO vflip or hflip? or what
 
 			if a_id > b_id:	# ensure smaller string comes first
 				print('smaller first! VFLIP')
@@ -261,8 +256,8 @@ def get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map
 				OHA, OHB = -OHB, -OHA
 				a_id = companion_index(a_id)
 				b_id = companion_index(b_id)
-				a_index = id_to_index_map[a_id]
-				b_index = id_to_index_map[b_id]
+				a_index = mappings.id2index[a_id]
+				b_index = mappings.id2index[b_id]
 				cigar.h_flip()
 
 			print('TRANSFORMS COMPLETE')
@@ -273,13 +268,14 @@ def get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map
 			CIGAR = cigar
 			K = k
 			O = 'N' if not arguments.inverts or b_id%2==0 else 'I'
-			a_name = id_to_names_map[a_id]
-			b_name = id_to_names_map[b_id]
+			a_name = mappings.id2names[a_id]
+			b_name = mappings.id2names[b_id]
 			solution = (a_name, b_name, O, OHA, OHB, OLA, OLB, K, CIGAR)
 			print_solution(solution, S_dict)
 			solution_set.add(solution)
 		else:
-			print('DID NOT VERIFY. TOO MANY ERRORS')
+			pass
+			# print('DID NOT VERIFY. TOO MANY ERRORS')
 
 
 	deduplicated = sort_and_deduplicate_solutions(solution_set)
@@ -297,53 +293,62 @@ def overlaps(S_dict, arguments):
 	t0 = time.clock()
 	# T, sorted_alphabet, indels, inclusions, candidate_set, thresh, condition_met_f
 
-	# names_to_id_map = dict()
-	id_to_names_map = dict()
-	for id, name in enumerate(S_dict.keys()):
+	id2names = dict()
+	sorted_names = sorted(S_dict.keys())
+	num_inputs = len(S_dict.keys())
+
+	for id, name in enumerate(sorted_names):
 		if not arguments.inverts:
-			id_to_names_map[id] = name
+			id2names[id] = name
 		else:
-			id_to_names_map[id*2] = name
-			id_to_names_map[(id*2)+1] = name
+			id2names[id*2] = name
+			id2names[(id*2)+1] = name
 
 
-	S = [S_dict[id_to_names_map[key]] for key in id_to_names_map.keys()]\
+	sorted_ids = range(num_inputs*2 if arguments.inverts else num_inputs)
+	# WUT = sorted(id_to_names_map.keys())
+	# print("WUT", WUT)
+	# print("WUT2", WUT2)
+	S = [S_dict[id2names[key]]
+		for key in sorted_ids]\
 		if not arguments.inverts\
-		else [S_dict[id_to_names_map[key]]
-			  if key%2==0 else prog_alphabet.invert(S_dict[id_to_names_map[key]])
-			  for key in id_to_names_map.keys()]
+		else [S_dict[id2names[key]]
+			  if key%2==0 else prog_alphabet.invert(S_dict[id2names[key]])
+			  for key in sorted_ids]
 
 	print(S)
 	T = ''
-	id_to_index_map = dict()
-	index_to_id_map = dict()
+	id2index = dict()
+	index2id = dict()
 	for i, s in enumerate(S):
-		id_to_index_map[i] = len(T)
-		index_to_id_map[len(T)] = i
+		id2index[i] = len(T)
+		index2id[len(T)] = i
 		T = T + s + '$'
 	# print('T', T)
 	# print('index_to_id_map', index_to_id_map)
 	# print('id_to_index_map', id_to_index_map)
 	# print()
 
-	index_to_length_map = dict()
+	index2len = dict()
 	for i, string in enumerate(S):
-		index_to_length_map[id_to_index_map[i]] = len(string)
+		index2len[id2index[i]] = len(string)
+
+	mappings = structs.Mappings(id2names, id2index, index2len, index2id)
 
 	t1 = time.clock()
 	print('input time', t1-t0)
 	#STEP 1
-	candidate_set = find_candidates(S, T, id_to_index_map, index_to_id_map, arguments)
+	candidate_set = find_candidates(S, T, arguments, mappings)
 	print('candidate_set', candidate_set)
-	print('index_to_id_map',index_to_id_map)
+	print('index_to_id_map',index2id)
 
-	candidate_set = remove_reflexive_candidates(candidate_set, arguments, index_to_id_map, id_to_names_map)
+	candidate_set = remove_reflexive_candidates(candidate_set, arguments, index2id, id2names)
 
 
 	t2 = time.clock()
 	print('step1 time', t2-t1)
 	#STEP 2
-	solution_set = get_solutions(candidate_set, S_dict, T, index_to_length_map, index_to_id_map, id_to_names_map, id_to_index_map, arguments)
+	solution_set = get_solutions(candidate_set, S_dict, T, arguments, mappings)
 
 	t3 = time.clock()
 	print('\n\n\n ------->')
@@ -361,22 +366,21 @@ def overlaps(S_dict, arguments):
 '''SCRIPT BEGIN'''
 
 
-arguments = Arguments(indels=True,
+arguments = structs.Arguments(indels=False,
 					  inclusions=True,
-					  inverts=True,
-					  e=0.27,
-					  thresh=5,
+					  inverts=False,
+					  e=0.02,
+					  thresh=20,
 					  in_path='data/basic.fasta',
-					  out_path='data/basic_out.txt')
-
+					  out_path='data/out.txt')
 
 
 random.seed(400)
 x = prog_io.rd(arguments.in_path)
 print(x)
 # exit(1)
-# S_dict = x
-S_dict = {0:'AAAAAGGGGGGGGG', 1:'GTGGTCCCCCAAAAA', 2:'CCCCC'}
+S_dict = x
+# S_dict = {0:'AAAAAGGGGGGGGG', 1:'GTGGTCCCCCAAAAA', 2:'CCCCC'}
 solutions = overlaps(S_dict, arguments)
 print('\n\n====SOLUTIONS====\n\n')
 with open(arguments.out_path, "w") as text_file:

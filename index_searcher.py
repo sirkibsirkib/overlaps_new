@@ -130,14 +130,14 @@ class FMIndex:
 		b_index = (len(self.T)-walk_right-1)%len(self.T)
 		b_tail = x-walk_left-1
 
-		print(self.T)
-		print(debug_aux.carat_chars([walk_left, x, walk_right], 60))
-		print(debug_aux.carat_chars([x], 60))
-
-		print('b_index')
-		print(self.normalT)
-		print(debug_aux.carat_chars([b_index], 70))
-		print(b_index, b_tail)
+		# print(self.T)
+		# print(debug_aux.carat_chars([walk_left, x, walk_right], 60))
+		# print(debug_aux.carat_chars([x], 60))
+		#
+		# print('b_index')
+		# print(self.normalT)
+		# print(debug_aux.carat_chars([b_index], 70))
+		# print(b_index, b_tail)
 
 		return b_index, b_tail
 
@@ -146,17 +146,17 @@ class FMIndex:
 	returns the index of where that string begins in the original version of T
 	'''
 	def string_start_in_not_backwards_T(self, end_dollar_in_index_T):
-		print('\n\n')
-		print('end_dollar_in_index_T', end_dollar_in_index_T)
-		print("T backwards:")
-		print(self.T)
-		print(debug_aux.carat_chars([end_dollar_in_index_T], len(self.normalT)))
+		# print('\n\n')
+		# print('end_dollar_in_index_T', end_dollar_in_index_T)
+		# print("T backwards:")
+		# print(self.T)
+		# print(debug_aux.carat_chars([end_dollar_in_index_T], len(self.normalT)))
 		x = (end_dollar_in_index_T-1)%len(self.T)
 		normal_x = len(self.T)-x-1
-		print(self.normalT)
-		print(debug_aux.carat_chars([normal_x], len(self.normalT)+10))
+		# print(self.normalT)
+		# print(debug_aux.carat_chars([normal_x], len(self.normalT)+10))
 		ind = self.id_to_index_map[(self.index_to_id_map[normal_x] - 1)% self.len_S]
-		print(debug_aux.carat_chars([ind], len(self.normalT)+10))
+		# print(debug_aux.carat_chars([ind], len(self.normalT)+10))
 		return ind
 
 
@@ -182,9 +182,6 @@ class FMIndex:
 		if a_index < 0 or b_index < 0 or a_index >= len(self.T) or b_index >= len(self.T):
 			print(cand)
 			raise ValueError('oh noes')
-		if b_index == 36:
-			print(cand)
-			raise ValueError('oh noes')
 		return cand
 
 
@@ -208,11 +205,11 @@ class FMIndex:
 
 		# count node
 		self.nodes += 1
-		if self.nodes % 100000 == 0:
-			print('\nnodes: ', self.nodes / 1000000, 'mil')
-			print('matched so far:', '[' + (p_i_start * '*') + MATCHED + ']   sp:', sp, 'ep', ep)
-			print('>>>', MATCHED.replace('_', '').upper())
-			print('p_i_next', p_i_next, 'p_i_end', p_i_end, 'err', errors, 'allowed_err', error_lookup[p_i_next])
+		# if self.nodes % 100000 == 0:
+		# 	print('\nnodes: ', self.nodes / 1000000, 'mil')
+		# 	print('matched so far:', '[' + (p_i_start * '*') + MATCHED + ']   sp:', sp, 'ep', ep)
+		# 	print('>>>', MATCHED.replace('_', '').upper())
+		# 	print('p_i_next', p_i_next, 'p_i_end', p_i_end, 'err', errors, 'allowed_err', error_lookup[p_i_next])
 
 		if self.arguments.indels and errors < error_lookup[min(p_i_next, p_i_end-1)-p_i_start]:
 			# INSERTION
@@ -230,13 +227,13 @@ class FMIndex:
 			# INCLUSIONS!!!
 			if self.arguments.inclusions:
 				for i in range(sp, ep + 1):
-					print('\n\nINCLUSION')
+					# print('\n\nINCLUSION')
 					a_ovr = pref_len + p_i_start
 					b_ovr = suff_len + p_i_start
 					b_index, b_tail = self.index_inside_to_front_not_backwards(self.sSAT[i])
-					print('b_index', b_index)
-					print('b_tail', b_tail)
-					print('\n\n')
+					# print('b_index', b_index)
+					# print('b_tail', b_tail)
+					# print('\n\n')
 					x = self.new_candidate(a_index=p_T_index,
 										   b_index=b_index,
 										   a_ovr=a_ovr,
