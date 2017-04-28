@@ -369,7 +369,7 @@ def overlaps(S_dict, arguments):
 arguments = structs.Arguments(indels=False,
 					  inclusions=True,
 					  inverts=False,
-					  e=0.02,
+					  e=0.01,
 					  thresh=20,
 					  in_path='data/basic.fasta',
 					  out_path='data/out.txt')
