@@ -23,13 +23,6 @@ class FMIndex:
 			counts[a] += 1
 		for z in alph2:
 			checkpoints[z].append(counts[z])
-		# print('counts')
-		# print(' ', '    ', ' |\t'.join([a for a in alph2]))
-		# for i in range(len(self.L)):
-		# 	if i % self.checkpoint_spacing == 0:
-		# 		print(self.L[i], '    ', ' |\t'.join([str(checkpoints[a][int(i / self.checkpoint_spacing)]) for a in alph2]))
-		# 	else:
-		# 		print(self.L[i])
 		return checkpoints
 
 
@@ -37,10 +30,9 @@ class FMIndex:
 	#F is the FIRST col of BW matrix
 	#	C is the compact representation of F, with start indexes for each alphabet letter
 	#sSAT is the Suffix Array mapping where each suffix row occurs in the original string
-	def __init__(self, T, candidate_set, condition_met_f, arguments, mappings, len_S):
+	def __init__(self, T, condition_met_f, arguments, mappings, len_S):
 		self.arguments = arguments
 		self.mappings = mappings
-		self.candidate_set = candidate_set
 		self.condition_met_f = condition_met_f
 		self.len_S = len_S
 
@@ -89,15 +81,13 @@ class FMIndex:
 
 		self.checkpoints = self.get_checkpoints()
 
-
-
-		print("INDEX VARS=======")
-		print('normalT', self.normalT)
-		print('T', T)
-		print('L', self.L)
-		print('C', self.C)
-		print('sSAT', self.sSAT)
-		print("INDEX VARS END=======")
+		# print("INDEX VARS=======")
+		# print('normalT', self.normalT)
+		# print('T', T)
+		# print('L', self.L)
+		# print('C', self.C)
+		# print('sSAT', self.sSAT)
+		# print("INDEX VARS END=======")
 
 
 	'''NAIVE RANK'''
@@ -195,7 +185,7 @@ class FMIndex:
 		but trace through the index backwards
 	adds candidates as [index_of_suffix_str, index_of_prefix_str, overlap_length, errors]
 	'''
-	def forward(self, p, p_i_start, p_i_next, p_i_end, sp, ep, p_T_index, p_id,
+	def forward(self, candidate_set, p, p_i_start, p_i_next, p_i_end, sp, ep, p_T_index, p_id,
 				errors, error_lookup, block_id_lookup, MATCHED, indel_balance, suff_len, pref_len):
 
 		# dead end. No matches in index
@@ -216,7 +206,7 @@ class FMIndex:
 				for a in self.sorted_alphabet:
 					sp_ = self.C[a] + self.rank(a, sp)
 					ep_ = self.C[a] + self.rank(a, ep + 1) - 1
-					self.forward(p, p_i_start, p_i_next, p_i_end, sp_, ep_, p_T_index, p_id,
+					self.forward(candidate_set, p, p_i_start, p_i_next, p_i_end, sp_, ep_, p_T_index, p_id,
 								 errors + 1, error_lookup, block_id_lookup, MATCHED + a.lower(), 1, suff_len+1, pref_len)
 
 
@@ -243,8 +233,8 @@ class FMIndex:
 										   debug_str=debug_string
 										   )
 					if x[0] != x[1]:
-						if x not in self.candidate_set:
-							self.candidate_set.add(x)
+						if x not in candidate_set:
+							candidate_set.add(x)
 						else:
 							self.duplicate_candidate_count += 1
 						# print('FIX INCLUSIONS U STUPID')
@@ -279,8 +269,8 @@ class FMIndex:
 									   debug_str=debug_string
 									   )
 				if x[0] != x[1]:
-					if x not in self.candidate_set:
-						self.candidate_set.add(x)
+					if x not in candidate_set:
+						candidate_set.add(x)
 					else:
 						self.duplicate_candidate_count += 1
 
@@ -293,7 +283,7 @@ class FMIndex:
 			ep_ = self.C[a] + self.rank(a, ep + 1) - 1
 			errors_ = errors if p[p_i_next] == a else errors + 1
 			if errors_ <= error_lookup[p_i_next-p_i_start]:
-				self.forward(p, p_i_start, p_i_next+1, p_i_end, sp_, ep_, p_T_index, p_id,
+				self.forward(candidate_set, p, p_i_start, p_i_next+1, p_i_end, sp_, ep_, p_T_index, p_id,
 						errors_, error_lookup, block_id_lookup, MATCHED+a, 0, suff_len+1, pref_len+1)
 
 		if self.arguments.indels and errors < error_lookup[p_i_next-p_i_start]:
@@ -301,13 +291,13 @@ class FMIndex:
 			if indel_balance <= 0 and p_i_next < p_i_end-2:
 				#ONLY ERROR CHAINS ON RUNS
 				if indel_balance == -1 or p[p_i_next+1] != p[p_i_next]:
-					self.forward(p, p_i_start, p_i_next + 1, p_i_end, sp, ep, p_T_index, p_id,
+					self.forward(candidate_set, p, p_i_start, p_i_next + 1, p_i_end, sp, ep, p_T_index, p_id,
 						 errors + 1, error_lookup, block_id_lookup, MATCHED + '_', -1, suff_len, pref_len+1)
 
 
 
-	def forward_search(self, p, p_i_start, p_T_index, p_id, error_lookup,
+	def forward_search(self, candidate_set, p, p_i_start, p_T_index, p_id, error_lookup,
 					   block_id_lookup):
-		self.forward(p, p_i_start, p_i_start, len(p), 0, len(self.L)-1, p_T_index, p_id,
+		self.forward(candidate_set, p, p_i_start, p_i_start, len(p), 0, len(self.L)-1, p_T_index, p_id,
 					 0, error_lookup, block_id_lookup, '?'*p_i_start, 0, 0, 0)
 

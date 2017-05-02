@@ -1,5 +1,5 @@
 class Arguments:
-	def __init__(self, indels, inclusions, inverts, e, thresh, in_path, out_path):
+	def __init__(self, indels, inclusions, inverts, e, thresh, in_path, out_path, step1_threads, step2_threads, use_existing_cands_files):
 		self.indels = indels
 		self.inclusions = inclusions
 		self.inverts = inverts
@@ -7,6 +7,9 @@ class Arguments:
 		self.thresh = thresh
 		self.in_path = in_path
 		self.out_path = out_path
+		self.step1_threads = step1_threads
+		self.step2_threads = step2_threads
+		self.use_existing_cands_files = use_existing_cands_files
 
 	def __repr__(self):
 		return ' indels {}\ninclusions {}\ninverts {}\ne {}\nthresh {}\nin_path {}\nout_path {}'\
