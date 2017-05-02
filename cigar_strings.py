@@ -85,7 +85,7 @@ def cigar_sequence(cigar_str):
 		code = cig[num_len]
 		cig = cig[num_len + 1:]
 		seq.append((n, code))
-	print(cigar_str, '==>', seq)
+	# print(cigar_str, '==>', seq)
 	return seq
 
 # def v_flip_cigar(cigar):

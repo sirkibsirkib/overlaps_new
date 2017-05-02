@@ -11,10 +11,11 @@ import prog_alphabet
 import cigar_strings
 import benchmarking
 import random
+from functools import partial
 import os
 from index_searcher import FMIndex as fm_index
-from multiprocessing.dummy import Pool as ThreadPool
-
+from itertools import repeat
+from multiprocessing.pool import Pool as ThreadPool
 
 
 '''MAIN FUNCTIONS'''
@@ -67,14 +68,16 @@ def worker_write_candidates(S, T, index, p_id, mappings, arguments):
 					written_cand = '{}\t{}\t{}\t{}\n'.format(match_id, c[2], c[3], c[4])
 					c_file.write(written_cand)
 
+
+
 def write_candidates(S, T, arguments, mappings):
 
 	if not os.path.exists('temp'):
 		os.makedirs('temp')
 	pool = ThreadPool(arguments.step1_threads)
 	index = fm_index(T, specific.conditions_met, arguments, mappings, len(S))
-	pool.map(lambda x: worker_write_candidates(S, T, index, x, mappings, arguments), range(len(S)))
-	print('DONE!')
+	# pool.map(lambda x: worker_write_candidates(S, T, index, x, mappings, arguments), range(len(S)))
+	pool.starmap(worker_write_candidates, zip(repeat(S), repeat(T), repeat(index), range(len(S)), repeat(mappings), repeat(arguments)))
 
 	# candidate_set = set()
 	# for p_id, patt in enumerate(S):
@@ -208,12 +211,13 @@ def worker_verify(T, patt_id, mappings, arguments):
 def verify_and_translate(num_ids, S_dict, T, arguments, mappings):
 	solution_set = set()
 
-	print('id2index')
-	print(mappings.id2index)
+	# print('id2index')
+	# print(mappings.id2index)
 
 	# solution_piles = [set() for _ in range(num_ids)]
 	pool = ThreadPool(arguments.step2_threads)
-	result_list = pool.map(lambda x : worker_verify(T, x, mappings, arguments), range(num_ids))
+	# result_list = pool.map(lambda x : worker_verify(T, x, mappings, arguments), range(num_ids))
+	result_list = pool.starmap(worker_verify, zip(repeat(T), range(num_ids), repeat(mappings), repeat(arguments)))
 
 	# for patt_id in range(num_ids):
 	#
@@ -295,19 +299,22 @@ def overlaps(S_dict, arguments):
 	sorted_ids = range(num_ids)
 
 	mappings, S, T = build_maps_and_internals(sorted_ids, S_dict, arguments)
-	benchmarker.time("Reading input complete")
-
+	benchmarker.log_moment("Reading input")
 	#STEP 1
 	write_candidates(S, T, arguments, mappings)
-	benchmarker.time("Step 1 complete")
+	benchmarker.log_moment("cands written")
 	# candidate_set = remove_reflexive_candidates(candidate_set, arguments, mappings)
 	# benchmarker.time("CANDIDATE SET (reflexives removed)")
 
 	#STEP 2
 	solution_set = verify_and_translate(num_ids, S_dict, T, arguments, mappings)
-	benchmarker.time("Step 2 & output complete")
+	benchmarker.log_moment("solutions & output")
 	# print_stats(len(candidate_set), len(solution_set))
-	benchmarker.total_time()
+
+	# print('<{}>'.format(benchmarker.log))
+
+	print()
+	print(benchmarker)
 
 	return solution_set
 
@@ -320,35 +327,34 @@ def overlaps(S_dict, arguments):
 
 
 arguments = structs.Arguments(indels=True,
-					inclusions=False,
-					inverts=False,
-					e=0.015,
+					inclusions=True,
+					inverts=True,
+					e=0.02,
 					thresh=20,
 					in_path='data/data1.fasta',
 					out_path='data/out.txt',
-					step1_threads=6,
-					step2_threads=3,
+					step1_threads=1,
+					step2_threads=1,
 					use_existing_cands_files=False
 					)
 
+if __name__ == '__main__':
+	random.seed(400)
+	x = prog_io.rd(arguments.in_path)
+	# print(x)
+	S_dict = x
+	# S_dict = {0:'AAAAAAAAAGGGGG', 1:'TTTTTTTAAAAAAAAA'}
+	solutions = overlaps(S_dict, arguments)
+	print('\n\n====SOLUTIONS====\n\n')
+	with open(arguments.out_path, "w") as text_file:
+		text_file.write('ID1\tID2\tO\tOHA\tOHB\tOLA\tOLB\tK\tCIG\n')
+		for sol in solutions:
+			text_file.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(*sol))
+		text_file.close()
+		print('WRITE DONE! wrote {} solutions!'.format(len(solutions)))
 
-random.seed(400)
-x = prog_io.rd(arguments.in_path)
-print(x)
-# exit(1)
-S_dict = x
-# S_dict = {0:'AAAAAAAAAGGGGG', 1:'TTTTTTTAAAAAAAAA'}
-solutions = overlaps(S_dict, arguments)
-print('\n\n====SOLUTIONS====\n\n')
-with open(arguments.out_path, "w") as text_file:
-	text_file.write('ID1\tID2\tO\tOHA\tOHB\tOLA\tOLB\tK\tCIG\n')
-	for sol in solutions:
-		text_file.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(*sol))
-	text_file.close()
-	print('WRITE DONE! wrote {} solutions!'.format(len(solutions)))
-
-print('not printing')
-# for sol in solutions:
-# 	print()
-# 	debug_aux.print_solution(sol, S_dict, debug=False)
-#TODO output in proper format, printing to file
+	print('not printing')
+	# for sol in solutions:
+	# 	print()
+	# 	debug_aux.print_solution(sol, S_dict, debug=False)
+	#TODO output in proper format, printing to file
