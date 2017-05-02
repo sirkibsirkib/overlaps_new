@@ -217,14 +217,14 @@ class FMIndex:
 					sp_ = self.C[a] + self.rank(a, sp)
 					ep_ = self.C[a] + self.rank(a, ep + 1) - 1
 					self.forward(p, p_i_start, p_i_next, p_i_end, sp_, ep_, p_T_index, p_id,
-								 errors + 1, error_lookup, block_id_lookup, MATCHED + a.lower(), indel_balance+1, suff_len+1, pref_len)
+								 errors + 1, error_lookup, block_id_lookup, MATCHED + a.lower(), 1, suff_len+1, pref_len)
 
 
 
 		# no more characters in patt to match
 		if p_i_next >= p_i_end :
 			# INCLUSIONS!!!
-			if self.arguments.inclusions:
+			if self.arguments.inclusions and p_i_next > p_i_start:
 				for i in range(sp, ep + 1):
 					# print('\n\nINCLUSION')
 					a_ovr = pref_len + p_i_start
@@ -233,12 +233,14 @@ class FMIndex:
 					# print('b_index', b_index)
 					# print('b_tail', b_tail)
 					# print('\n\n')
+					# debug_string = 'INC:MATCHED[{}] patt[{}]'.format(MATCHED, p[:p_i_end])
+					debug_string = ''
 					x = self.new_candidate(a_index=p_T_index,
 										   b_index=b_index,
 										   a_ovr=a_ovr,
 										   b_ovr=b_ovr,
 										   b_tail=b_tail,
-										   debug_str='INCL:' + MATCHED
+										   debug_str=debug_string
 										   )
 					if x[0] != x[1]:
 						if x not in self.candidate_set:
@@ -259,15 +261,14 @@ class FMIndex:
 						# 			self.duplicate_candidate_count += 1
 			return
 
-		# add candidate overlaps for positions followed by '$'
+		# ADD SUFFIX CANDIDATE
 		if self.condition_met_f(p_i_start, max(p_i_next, p_i_next-pref_len+suff_len), self.arguments.thresh, block_id_lookup[p_i_next-p_i_start], errors):
-			a = '$'
-			sp_ = 0 + self.rank(a, sp)
-			ep_ = 0 + self.rank(a, ep + 1) - 1
+			sp_ = 0 + self.rank('$', sp)
+			ep_ = 0 + self.rank('$', ep + 1) - 1
 			a_ovr = pref_len + p_i_start
 			b_ovr = suff_len + p_i_start
-			debug_string = 'MATCHED[{}] patt[{}]'.format(MATCHED, p[:p_i_end])
-			# debug_string = ''
+			# debug_string = 'MATCHED[{}] patt[{}]'.format(MATCHED, p[:p_i_end])
+			debug_string = ''
 			for i in range(sp_, ep_ + 1):
 				b_index = self.string_start_in_not_backwards_T(self.sSAT[i])
 				x = self.new_candidate(a_index=p_T_index,
@@ -298,8 +299,10 @@ class FMIndex:
 		if self.arguments.indels and errors < error_lookup[p_i_next-p_i_start]:
 			# DELETION
 			if indel_balance <= 0 and p_i_next < p_i_end-2:
-				self.forward(p, p_i_start, p_i_next + 1, p_i_end, sp, ep, p_T_index, p_id,
-							 errors + 1, error_lookup, block_id_lookup, MATCHED + '_', indel_balance-1, suff_len, pref_len+1)
+				#ONLY ERROR CHAINS ON RUNS
+				if indel_balance == -1 or p[p_i_next+1] != p[p_i_next]:
+					self.forward(p, p_i_start, p_i_next + 1, p_i_end, sp, ep, p_T_index, p_id,
+						 errors + 1, error_lookup, block_id_lookup, MATCHED + '_', -1, suff_len, pref_len+1)
 
 
 

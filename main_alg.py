@@ -62,15 +62,22 @@ def string_id_to_T_index_map(S):
 
 '''MAIN FUNCTIONS'''
 
-def block_id_and_error_lookups(suffix_parts, filter):
+def block_id_and_error_lookups(suffix_parts, filter, max_B_len, error_hard_cap):
 	block_id_lookup = []
 	error_lookup = []
 
 	for i in range(len(suffix_parts)):
 		for _ in range(suffix_parts[i]):
-			err = filter[i]
+			err = min(filter[i], error_hard_cap)
 			block_id_lookup.append(i)
 			error_lookup.append(err)
+
+	last_block_index = len(suffix_parts)
+	while len(block_id_lookup) < max_B_len:
+		block_id_lookup.append(last_block_index)
+		error_lookup.append(error_hard_cap)
+
+
 	# print()
 	# print('suffix_parts', suffix_parts, 'filter', filter)
 	# print('block_id_lookup', block_id_lookup)
@@ -78,8 +85,8 @@ def block_id_and_error_lookups(suffix_parts, filter):
 	return block_id_lookup, error_lookup
 
 def find_candidates(S, T, arguments, mappings):
-	print('id_to_index_map', mappings.id2index)
-	print('index_to_id_map', mappings.index2id)
+	# print('id_to_index_map', mappings.id2index)
+	# print('index_to_id_map', mappings.index2id)
 	candidate_set = set()
 	index = fm_index(T, candidate_set, specific.conditions_met, arguments, mappings, len(S))
 	for p_id, patt in enumerate(S):
@@ -91,34 +98,39 @@ def find_candidates(S, T, arguments, mappings):
 		assert sum(block_lengths) == len(patt) #making sure partition lengths are sound
 		p_T_index = mappings.id2index[p_id]
 		print("NEXT PATT:")
-		print(T)
-		print(debug_aux.carat_chars([p_T_index], 50))
+		# print(T)
+		# print(debug_aux.carat_chars([p_T_index], 50))
+		print('{} / {}'.format(p_id+1, len(S)))
 		print(patt)
 
 		error_hard_cap = math.floor(len(patt)*arguments.e)
+		max_B_len = len(patt) if not arguments.indels else math.floor(len(patt)/(1-arguments.e))
 
-		print('FILTERS')
+		# print('FILTERS')
 		for filter in filters:
-			print('filter', filter)
+			# print('filter', filter)
 
-			filter_capped = [min(error_hard_cap, x) for x in filter]
-			print('FILTER UNCAPPED', filter)
-			print('FILTER CAPPED', filter_capped)
-			print('patt len', len(filter))
+			# filter_capped = [min(error_hard_cap, x) for x in filter]
+			# print('FILTER UNCAPPED', filter)
+			# print('FILTER CAPPED', filter_capped)
+			# print('patt len', len(filter))
 
-			filter = filter_capped
+			# filter = filter_capped
 
 			# time.sleep(1)
 
 			first_block_index = len(block_lengths)-len(filter)
 			p_i_start = sum(block_lengths[:first_block_index])
-			print()
-			print(patt, '    <---- patt')
-			print(debug_aux.carat_chars([p_i_start], len(patt)), '    <---- suffix start')
-			block_id_lookup, error_lookup = block_id_and_error_lookups(block_lengths[first_block_index:], filter)
-			print((' '*p_i_start) + (''.join(map(lambda x : str(x), block_id_lookup))), '    <--- block IDs')
-			print((' '*p_i_start) + (''.join(map(lambda x : str(x), error_lookup))), '    <--- cumulative allowed errors')
+			# print()
+			# print(patt, '    <---- patt')
+			# print(debug_aux.carat_chars([p_i_start], len(patt)), '    <---- suffix start')
+
+			#FILTER NOT AFFECTED BY ERROR CAP. ERROR LOOKUP IS
+			block_id_lookup, error_lookup = block_id_and_error_lookups(block_lengths[first_block_index:], filter, max_B_len, error_hard_cap)
+			# print((' '*p_i_start) + (''.join(map(lambda x : str(x), block_id_lookup))), '    <--- block IDs')
+			# print((' '*p_i_start) + (''.join(map(lambda x : str(x), error_lookup))), '    <--- cumulative allowed errors')
 			index.forward_search(patt, p_i_start, p_T_index, p_id, error_lookup, block_id_lookup)
+			print('  {} candidates so far'.format(len(candidate_set)))
 
 	print('total nodes: ', index.nodes)
 	print('total duplicate candidates: ', index.duplicate_candidate_count)
@@ -160,6 +172,8 @@ def verifies(candidate, T, b_len, arguments):
 		# print('b_ovr_string', b_ovr_string)
 
 		if arguments.indels:
+			if len(a_ovr_string) < 2 or len(b_ovr_string) < 2:
+				return -1, 'NO_CIG'
 			ed, cigar = edit_distance(a_ovr_string, b_ovr_string)
 			return (ed if ed <= errs_allowed else -1), cigar
 		else: #hamming
@@ -182,9 +196,9 @@ def redundant_solutions(a, b):
 	for i in range(len(a)-1): #chop off cigar
 		if a[i] != b[i]:
 			return False
-	print("REDUNDANT!")
-	print(a)
-	print(b)
+	# print("REDUNDANT!")
+	# print(a)
+	# print(b)
 	return True
 
 def sort_and_deduplicate_solutions(solution_set):
@@ -209,21 +223,22 @@ def get_solutions(candidate_set, S_dict, T, arguments, mappings):
 		a_index, b_index, a_ovr, b_ovr, b_tail, debug_str = candidate
 
 		if k != -1: #-1 errors means 'too many to verify'
+			print(candidate)
 			#solution accepted
-			print('\n\n\n>')
-			print(T)
-			print(debug_aux.carat_chars(range(a_index, a_index + a_len), len(T) + 5))
-			print(debug_aux.carat_chars(range(b_index, b_index + b_len), len(T) + 5))
+			# print('\n\n\n>')
+			# print(T)
+			# print(debug_aux.carat_chars(range(a_index, a_index + a_len), len(T) + 5))
+			# print(debug_aux.carat_chars(range(b_index, b_index + b_len), len(T) + 5))
 			a_id = mappings.index2id[a_index]
 			b_id = mappings.index2id[b_index]
 			if b_ovr+b_tail > b_len:
 				#blind spot overlapping ???[MMMMM]~~~~~~~~
 				#                         ~~MMMMM
-				print('blind spot overlapping! DISCARD')
+				# print('blind spot overlapping! DISCARD')
 				continue
-			print(a_id, 'pref', T[a_index:a_index+a_len])
-			print(b_id, 'suff', T[b_index:b_index+b_len])
-			print('b_tail!!!', b_tail)
+			# print(a_id, 'pref', T[a_index:a_index+a_len])
+			# print(b_id, 'suff', T[b_index:b_index+b_len])
+			# print('b_tail!!!', b_tail)
 			OLA = a_ovr
 			OLB = b_ovr
 			if b_tail == 0:
@@ -234,25 +249,25 @@ def get_solutions(candidate_set, S_dict, T, arguments, mappings):
 				OHB = b_tail
 			OHA = -(b_len - b_ovr) if b_tail == 0 else -(b_len - b_tail - b_ovr)
 			OHB = -(a_len - a_ovr) if b_tail == 0 else b_tail
-			print('initIDS', a_id, b_id)
-			print(T)
-			print(' :  ', '^'*-OHA + T[a_index:a_index+a_len] + '*'*(b_ovr-a_ovr) + '~'*OHB)
-			print(' :  ', '^'*OHA + T[b_index:b_index+b_len] + '*'*(a_ovr-b_ovr) + '~'*-OHB)
+			# print('initIDS', a_id, b_id)
+			# print(T)
+			# print(' :  ', '^'*-OHA + T[a_index:a_index+a_len] + '*'*(b_ovr-a_ovr) + '~'*OHB)
+			# print(' :  ', '^'*OHA + T[b_index:b_index+b_len] + '*'*(a_ovr-b_ovr) + '~'*-OHB)
 
 			if a_id > b_id:	# ensure smaller string comes first
-				print('smaller first! VFLIP')
+				# print('smaller first! VFLIP')
 				OHA *= -1
 				OHB *= -1
 				a_len, b_len = b_len, a_len
 				a_id, b_id, OLA, OLB = b_id, a_id, OLB, OLA
 				a_index, b_index = b_index, a_index
 				cigar.v_flip()
-			print('tIDS', a_id, b_id)
-			print(T)
-			print(' :  ', '^' * -OHA + T[a_index:a_index + a_len] + '*' * (b_ovr - a_ovr) + '~' * OHB)
-			print(' :  ', '^' * OHA + T[b_index:b_index + b_len] + '*' * (a_ovr - b_ovr) + '~' * -OHB)
+			# print('tIDS', a_id, b_id)
+			# print(T)
+			# print(' :  ', '^' * -OHA + T[a_index:a_index + a_len] + '*' * (b_ovr - a_ovr) + '~' * OHB)
+			# print(' :  ', '^' * OHA + T[b_index:b_index + b_len] + '*' * (a_ovr - b_ovr) + '~' * -OHB)
 			if arguments.inverts and a_id % 2 == 1:	#guarantee not BOTH are flipped
-				print('a must be non-neg! HFLIP')
+				# print('a must be non-neg! HFLIP')
 				OHA, OHB = -OHB, -OHA
 				a_id = companion_index(a_id)
 				b_id = companion_index(b_id)
@@ -260,18 +275,18 @@ def get_solutions(candidate_set, S_dict, T, arguments, mappings):
 				b_index = mappings.id2index[b_id]
 				cigar.h_flip()
 
-			print('TRANSFORMS COMPLETE')
-			print('tIDS', a_id, b_id)
-			print(T)
-			print(' :  ', '^'*-OHA + T[a_index:a_index+a_len] + '*'*(b_ovr-a_ovr) + '~'*OHB)
-			print(' :  ', '^'*OHA + T[b_index:b_index+b_len] + '*'*(a_ovr-b_ovr) + '~'*-OHB)
+			# print('TRANSFORMS COMPLETE')
+			# print('tIDS', a_id, b_id)
+			# print(T)
+			# print(' :  ', '^'*-OHA + T[a_index:a_index+a_len] + '*'*(b_ovr-a_ovr) + '~'*OHB)
+			# print(' :  ', '^'*OHA + T[b_index:b_index+b_len] + '*'*(a_ovr-b_ovr) + '~'*-OHB)
 			CIGAR = cigar
 			K = k
 			O = 'N' if not arguments.inverts or b_id%2==0 else 'I'
 			a_name = mappings.id2names[a_id]
 			b_name = mappings.id2names[b_id]
 			solution = (a_name, b_name, O, OHA, OHB, OLA, OLB, K, CIGAR)
-			print_solution(solution, S_dict)
+			# print_solution(solution, S_dict)
 			solution_set.add(solution)
 		else:
 			pass
@@ -366,21 +381,21 @@ def overlaps(S_dict, arguments):
 '''SCRIPT BEGIN'''
 
 
-arguments = structs.Arguments(indels=False,
+arguments = structs.Arguments(indels=True,
 					  inclusions=True,
 					  inverts=False,
-					  e=0.01,
-					  thresh=20,
-					  in_path='data/basic.fasta',
-					  out_path='data/out.txt')
+					  e=0.2,
+					  thresh=5,
+					  in_path='data/data1.fasta',
+					  out_path='data/data1_out.txt')
 
 
 random.seed(400)
 x = prog_io.rd(arguments.in_path)
 print(x)
 # exit(1)
-S_dict = x
-# S_dict = {0:'AAAAAGGGGGGGGG', 1:'GTGGTCCCCCAAAAA', 2:'CCCCC'}
+# S_dict = x
+S_dict = {0:'AAAAAAAAAGGGGG', 1:'TTTTTTTAAAAAAAAA'}
 solutions = overlaps(S_dict, arguments)
 print('\n\n====SOLUTIONS====\n\n')
 with open(arguments.out_path, "w") as text_file:

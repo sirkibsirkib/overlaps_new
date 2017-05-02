@@ -36,10 +36,10 @@ def get_block_lengths_and_filters(patt_length, e, thresh):
 	for i in range(end_range):
 		filters.append(list(range(0, len(block_lengths)-i-s_param)) + [end_range-i-1 for _ in range(s_param)])
 
-	print(block_lengths)
-	print("\nFILTERS:\n")
-	for i, f in enumerate(filters):
-		print('\t'*i, *f, sep='\t')
+	# print(block_lengths)
+	# print("\nFILTERS:\n")
+	# for i, f in enumerate(filters):
+	# 	print('\t'*i, *f, sep='\t')
 	# time.sleep(2)
 	return block_lengths, filters
 

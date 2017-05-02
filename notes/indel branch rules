@@ -1,0 +1,11 @@
+1
+indels at beginning or end of candidate match. It's pointless
+
+2
+no insert directly after deletion. no deletion directly after insetion
+
+3
+in rules of the same character, all deletions must be clustered to the left of the run
+
+4
+in runs of insertions of the same character, all insertions must be clustered to the right of the run

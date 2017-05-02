@@ -1,8 +1,13 @@
 TODO:
 
-make solutions that differ only in cigar be seen as identical
 
-debug indels not finding all solutions. probably some silly off-by-one somewhere
+limit recursive branching with rules
+make the filter value checked for index of max(a_len, b_len) ???
+
+test if capped filters are working as intended
+
+made producer-consumer relationship
+
 cigar code file
 solutions found not deterministic! problem somewhere
 check correctness of basic.fasta
