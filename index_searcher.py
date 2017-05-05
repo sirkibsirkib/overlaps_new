@@ -1,6 +1,8 @@
 import debug_aux
 import cigar_strings
 
+search_debug = False
+
 def sorted_alphabet_of(T):
 	s = set()
 	for c in T:
@@ -42,7 +44,7 @@ class FMIndex:
 		self.normalT = T
 		T = T[::-1]
 		SAT = [i for i in range(len(T))]
-		sSAT = sorted(SAT, key=lambda x: T[x:] + T[:x])
+		sSAT = sorted(SAT, key=lambda x: T[x:] + '$')
 		self.F = ''.join(T[sSAT[i]] for i in range(len(T)))
 		L = ''.join(T[sSAT[i] - 1] for i in range(len(T)))
 
@@ -64,6 +66,8 @@ class FMIndex:
 
 		Ccount = 0
 		sorted_alphabet = sorted_alphabet_of(T)
+		if search_debug:
+			print('sorted alphabet', sorted_alphabet)
 		for a in sorted_alphabet:
 			C[a] = Ccount + dollar_count
 			Ccount += T.count(a)
@@ -77,7 +81,8 @@ class FMIndex:
 		self.sorted_alphabet = sorted_alphabet
 		self.next_dollar_sign_at = next_dollar_sign_at
 		self.T = T
-
+		if search_debug:
+			print('backwardsT', self.T)
 
 		self.checkpoints = self.get_checkpoints()
 
@@ -171,6 +176,8 @@ class FMIndex:
 		if a_index < 0 or b_index < 0 or a_index >= len(self.T) or b_index >= len(self.T):
 			print(cand)
 			raise ValueError('oh noes')
+		if search_debug:
+			print('CAND!', cand)
 		return cand
 
 
@@ -189,14 +196,15 @@ class FMIndex:
 				errors, error_lookup, block_id_lookup, MATCHED, indel_balance, suff_len, pref_len):
 
 		# dead end. No matches in index
-		if sp >= ep:
+		if sp > ep:
 			return
 
 		# count node
 		self.nodes += 1
 		# if self.nodes % 100000 == 0:
 		# 	print('\nnodes: ', self.nodes / 1000000, 'mil')
-		# 	print('matched so far:', '[' + (p_i_start * '*') + MATCHED + ']   sp:', sp, 'ep', ep)
+		if search_debug:
+			print('matched so far:', '[' + MATCHED + ']   ep-sp', ep-sp, '  err', errors)
 		# 	print('>>>', MATCHED.replace('_', '').upper())
 		# 	print('p_i_next', p_i_next, 'p_i_end', p_i_end, 'err', errors, 'allowed_err', error_lookup[p_i_next])
 
@@ -211,8 +219,32 @@ class FMIndex:
 
 
 
-		# no more characters in patt to match
-		if p_i_next >= p_i_end :
+
+
+		# ADD SUFFIX CANDIDATE
+		if self.condition_met_f(p_i_start, max(p_i_next, p_i_next-pref_len+suff_len), self.arguments.thresh, block_id_lookup[p_i_next-1-p_i_start], errors):
+			sp_ = 0 + self.rank('$', sp)
+			ep_ = 0 + self.rank('$', ep + 1) - 1
+			a_ovr = pref_len + p_i_start
+			b_ovr = suff_len + p_i_start
+			debug_string = '' if not search_debug else 'MATCHED[{}] patt[{}]'.format(MATCHED, p[:p_i_end])
+			for i in range(sp_, ep_ + 1):
+				b_index = self.string_start_in_not_backwards_T(self.sSAT[i])
+				x = self.new_candidate(a_index=p_T_index,
+									   b_index=b_index,
+									   a_ovr=a_ovr,
+									   b_ovr=b_ovr,
+									   b_tail=0,
+									   debug_str=debug_string
+									   )
+				# if x[0] != x[1]:
+				if x not in candidate_set:
+					candidate_set.add(x)
+				else:
+					self.duplicate_candidate_count += 1
+
+					# no more characters in patt to match
+		if p_i_next >= p_i_end:
 			# INCLUSIONS!!!
 			if self.arguments.inclusions and p_i_next > p_i_start:
 				for i in range(sp, ep + 1):
@@ -223,8 +255,7 @@ class FMIndex:
 					# print('b_index', b_index)
 					# print('b_tail', b_tail)
 					# print('\n\n')
-					# debug_string = 'INC:MATCHED[{}] patt[{}]'.format(MATCHED, p[:p_i_end])
-					debug_string = ''
+					debug_string = '' if not search_debug else 'MATCHED[{}] patt[{}]'.format(MATCHED, p[:p_i_end])
 					x = self.new_candidate(a_index=p_T_index,
 										   b_index=b_index,
 										   a_ovr=a_ovr,
@@ -251,37 +282,12 @@ class FMIndex:
 						# 			self.duplicate_candidate_count += 1
 			return
 
-		# ADD SUFFIX CANDIDATE
-		if self.condition_met_f(p_i_start, max(p_i_next, p_i_next-pref_len+suff_len), self.arguments.thresh, block_id_lookup[p_i_next-p_i_start], errors):
-			sp_ = 0 + self.rank('$', sp)
-			ep_ = 0 + self.rank('$', ep + 1) - 1
-			a_ovr = pref_len + p_i_start
-			b_ovr = suff_len + p_i_start
-			# debug_string = 'MATCHED[{}] patt[{}]'.format(MATCHED, p[:p_i_end])
-			debug_string = ''
-			for i in range(sp_, ep_ + 1):
-				b_index = self.string_start_in_not_backwards_T(self.sSAT[i])
-				x = self.new_candidate(a_index=p_T_index,
-									   b_index=b_index,
-									   a_ovr=a_ovr,
-									   b_ovr=b_ovr,
-									   b_tail=0,
-									   debug_str=debug_string
-									   )
-				if x[0] != x[1]:
-					if x not in candidate_set:
-						candidate_set.add(x)
-					else:
-						self.duplicate_candidate_count += 1
-
-
-
 
 		for a in self.sorted_alphabet:
 			# SUBSTITUTION
 			sp_ = self.C[a] + self.rank(a, sp)
 			ep_ = self.C[a] + self.rank(a, ep + 1) - 1
-			errors_ = errors if p[p_i_next] == a else errors + 1
+			errors_ = errors if p[p_i_next] == a and a != 'N' else errors + 1
 			if errors_ <= error_lookup[p_i_next-p_i_start]:
 				self.forward(candidate_set, p, p_i_start, p_i_next+1, p_i_end, sp_, ep_, p_T_index, p_id,
 						errors_, error_lookup, block_id_lookup, MATCHED+a, 0, suff_len+1, pref_len+1)
@@ -298,6 +304,8 @@ class FMIndex:
 
 	def forward_search(self, candidate_set, p, p_i_start, p_T_index, p_id, error_lookup,
 					   block_id_lookup):
+		if search_debug:
+			print('\nNEW SUFF')
 		self.forward(candidate_set, p, p_i_start, p_i_start, len(p), 0, len(self.L)-1, p_T_index, p_id,
 					 0, error_lookup, block_id_lookup, '?'*p_i_start, 0, 0, 0)
 

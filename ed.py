@@ -125,7 +125,7 @@ def distance_alignment(x, y):
 		mat[j][0] = j + head_cost
 	for i in range(1, len(y)-1):
 		for j in range(1, len(x)-1):
-			delta = 0 if y[i] == x[j] else 1
+			delta = 0 if y[i] == x[j] and y[i] != 'N' else 1
 			right	= mat[i - 1][j] + 1
 			down	= mat[i][j - 1] + 1
 			across 	= mat[i - 1][j - 1] + delta

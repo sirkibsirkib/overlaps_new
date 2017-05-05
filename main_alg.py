@@ -34,6 +34,9 @@ def block_id_and_error_lookups(suffix_parts, filter, max_B_len, error_hard_cap):
 		error_lookup.append(error_hard_cap)
 	return block_id_lookup, error_lookup
 
+def worker_CAND(p_id):
+	global g_S, g_T, g_index, g_mappings, g_arguments
+	worker_write_candidates(g_S, g_T, g_index, p_id, g_mappings, g_arguments)
 
 
 def worker_write_candidates(S, T, index, p_id, mappings, arguments):
@@ -57,14 +60,15 @@ def worker_write_candidates(S, T, index, p_id, mappings, arguments):
 			block_id_lookup, error_lookup = block_id_and_error_lookups(block_lengths[first_block_index:], filter, max_B_len,
 																	   error_hard_cap)
 			index.forward_search(candidate_set, patt, p_i_start, p_T_index, p_id, error_lookup, block_id_lookup)
-
-	p_companion_id = solution_builder.companion_index(p_id)
+	prohibited_ids = [p_id]
+	if arguments.inverts:
+		prohibited_ids.append(solution_builder.companion_index(p_id))
 
 	if not skip_writing:
 		with open(file_name, "w") as c_file:
 			for c in candidate_set:
 				match_id = mappings.index2id[c[1]]
-				if match_id != p_id and match_id != p_companion_id:
+				if match_id not in prohibited_ids:
 					written_cand = '{}\t{}\t{}\t{}\n'.format(match_id, c[2], c[3], c[4])
 					c_file.write(written_cand)
 
@@ -76,7 +80,19 @@ def write_candidates(S, T, arguments, mappings):
 		os.makedirs('temp')
 	pool = ThreadPool(arguments.step1_threads)
 	index = fm_index(T, specific.conditions_met, arguments, mappings, len(S))
-	# pool.map(lambda x: worker_write_candidates(S, T, index, x, mappings, arguments), range(len(S)))
+	global g_S, g_T, g_index, g_mappings, g_arguments
+	g_S = S
+	g_T = T
+	g_index = index
+	g_mappings = mappings
+	g_arguments = arguments
+
+	#		SINGLE THREADED MODE
+	# for p_id in range(len(S)):
+	# 	worker_write_candidates(S, T, index, p_id, mappings, arguments)
+
+	#		MULTI THREADED MODE
+	# pool.map(worker_CAND, range(len(S)))
 	pool.starmap(worker_write_candidates, zip(repeat(S), repeat(T), repeat(index), range(len(S)), repeat(mappings), repeat(arguments)))
 
 	# candidate_set = set()
@@ -152,6 +168,7 @@ def verifies(candidate, T, b_len, arguments):
 		b_ovr_start = b_index - b_ovr - b_tail + b_len
 		a_ovr_string = T[a_index : a_index + a_ovr]
 		b_ovr_string = T[b_ovr_start : b_ovr_start + b_ovr]
+
 		if arguments.indels:
 			if len(a_ovr_string) < 2 or len(b_ovr_string) < 2:
 				return -1, 'NO_CIG'
@@ -161,10 +178,10 @@ def verifies(candidate, T, b_len, arguments):
 			assert a_ovr == b_ovr
 			err_count = 0
 			for i in range(a_ovr):
-				if T[a_index+i] != T[b_ovr_start+i]:
+				if T[a_index+i] != T[b_ovr_start+i] or T[a_index+1]=='N':
 					err_count += 1
 			return err_count if err_count <= errs_allowed else -1, cigar_strings.cigar_for_match_of_len(a_ovr)
-	except:
+	except :
 		#out of string bounds exception
 		print('OH CRAP, out of bounds verify!! oh noes!')
 		raise
@@ -209,13 +226,12 @@ def worker_verify(T, patt_id, mappings, arguments):
 	return result
 
 def verify_and_translate(num_ids, S_dict, T, arguments, mappings):
-	solution_set = set()
-
-	# print('id2index')
-	# print(mappings.id2index)
-
-	# solution_piles = [set() for _ in range(num_ids)]
 	pool = ThreadPool(arguments.step2_threads)
+
+	#		SINGLE THREADED MODE
+	result_list = map(lambda x : worker_verify(T, x, mappings, arguments), range(num_ids))
+
+	#		MULTI THREADED MODE
 	# result_list = pool.map(lambda x : worker_verify(T, x, mappings, arguments), range(num_ids))
 	result_list = pool.starmap(worker_verify, zip(repeat(T), range(num_ids), repeat(mappings), repeat(arguments)))
 
@@ -309,6 +325,7 @@ def overlaps(S_dict, arguments):
 	#STEP 2
 	solution_set = verify_and_translate(num_ids, S_dict, T, arguments, mappings)
 	benchmarker.log_moment("solutions & output")
+	global cand_count
 	# print_stats(len(candidate_set), len(solution_set))
 
 	# print('<{}>'.format(benchmarker.log))
@@ -327,23 +344,24 @@ def overlaps(S_dict, arguments):
 
 
 arguments = structs.Arguments(indels=True,
-					inclusions=True,
-					inverts=True,
-					e=0.02,
-					thresh=20,
-					in_path='data/data1.fasta',
+					inclusions=False,
+					inverts=False,
+					e=0.41,
+					thresh=5,
+					in_path='data/basic.fasta',
 					out_path='data/out.txt',
-					step1_threads=1,
-					step2_threads=1,
+					step1_threads=4,
+					step2_threads=4,
 					use_existing_cands_files=False
 					)
 
 if __name__ == '__main__':
 	random.seed(400)
-	x = prog_io.rd(arguments.in_path)
-	# print(x)
-	S_dict = x
-	# S_dict = {0:'AAAAAAAAAGGGGG', 1:'TTTTTTTAAAAAAAAA'}
+	raw_dict = prog_io.rd(arguments.in_path)
+
+	raw_dict = {0:'AAAATTTNTT', 1:'TTTTCCCC', 2:'GGGGTTTNNTT'}
+	S_dict = prog_alphabet.prepare(raw_dict)
+	print(S_dict)
 	solutions = overlaps(S_dict, arguments)
 	print('\n\n====SOLUTIONS====\n\n')
 	with open(arguments.out_path, "w") as text_file:
@@ -353,8 +371,8 @@ if __name__ == '__main__':
 		text_file.close()
 		print('WRITE DONE! wrote {} solutions!'.format(len(solutions)))
 
-	print('not printing')
-	# for sol in solutions:
-	# 	print()
-	# 	debug_aux.print_solution(sol, S_dict, debug=False)
+	# print('not printing')
+	for sol in solutions:
+		print()
+		debug_aux.print_solution(sol, S_dict, debug=False)
 	#TODO output in proper format, printing to file
