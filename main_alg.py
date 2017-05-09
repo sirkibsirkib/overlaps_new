@@ -95,71 +95,6 @@ def write_candidates(S, T, arguments, mappings):
 	# pool.map(worker_CAND, range(len(S)))
 	pool.starmap(worker_write_candidates, zip(repeat(S), repeat(T), repeat(index), range(len(S)), repeat(mappings), repeat(arguments)))
 
-	# candidate_set = set()
-	# for p_id, patt in enumerate(S):
-	# 	if len(patt) < arguments.thresh:
-	# 		#skip patterns too small to match
-	# 		continue
-	#
-	# 	block_lengths, filters = specific.get_block_lengths_and_filters(len(patt), arguments.e, arguments.thresh)
-	# 	assert sum(block_lengths) == len(patt) #making sure partition lengths are sound
-	# 	p_T_index = mappings.id2index[p_id]
-	# 	# print("NEXT PATT:")
-	# 	# print(T)
-	# 	# print(debug_aux.carat_chars([p_T_index], 50))
-	# 	# print('{} / {}'.format(p_id+1, len(S)))
-	# 	# print(patt)
-	#
-	# 	error_hard_cap = math.floor(len(patt)*arguments.e)
-	# 	max_B_len = len(patt) if not arguments.indels else math.floor(len(patt)/(1-arguments.e))
-	#
-	# 	# print('FILTERS')
-	# 	for filter in filters:
-	# 		# print('filter', filter)
-	#
-	# 		# filter_capped = [min(error_hard_cap, x) for x in filter]
-	# 		# print('FILTER UNCAPPED', filter)
-	# 		# print('FILTER CAPPED', filter_capped)
-	# 		# print('patt len', len(filter))
-	#
-	# 		# filter = filter_capped
-	#
-	# 		# time.sleep(1)
-	#
-	# 		first_block_index = len(block_lengths)-len(filter)
-	# 		p_i_start = sum(block_lengths[:first_block_index])
-	# 		# print()
-	# 		# print(patt, '    <---- patt')
-	# 		# print(debug_aux.carat_chars([p_i_start], len(patt)), '    <---- suffix start')
-	#
-	# 		#FILTER NOT AFFECTED BY ERROR CAP. ERROR LOOKUP IS
-	# 		block_id_lookup, error_lookup = block_id_and_error_lookups(block_lengths[first_block_index:], filter, max_B_len, error_hard_cap)
-	# 		# print((' '*p_i_start) + (''.join(map(lambda x : str(x), block_id_lookup))), '    <--- block IDs')
-	# 		# print((' '*p_i_start) + (''.join(map(lambda x : str(x), error_lookup))), '    <--- cumulative allowed errors')
-	# 		index.forward_search(candidate_set, patt, p_i_start, p_T_index, p_id, error_lookup, block_id_lookup)
-	#
-	# 	write_candidates_for_patt(p_id, candidate_set, arguments, mappings)
-
-	# print('total nodes: ', index.nodes)
-	# print('total duplicate candidates: ', index.duplicate_candidate_count)
-	# print('original candidate ratio: ', len(candidate_set)/(len(candidate_set)+index.duplicate_candidate_count) if len(candidate_set) > 0 else '?')
-
-
-
-
-# def remove_reflexive_candidates(candidates, arguments, mappings):
-# 	if not arguments.inverts:
-# 		return {x for x in candidates if x[0] != x[1]}
-# 	else:
-# 		ret = set()
-# 		for x in candidates:
-# 			id_a = mappings.index2id[x[0]]
-# 			id_b = mappings.index2id[x[1]]
-# 			#if not matching a string with itself (flipped or otherwise)
-# 			if (mappings.id2names[id_a] != mappings.id2names[id_b]):
-# 				ret.add(x)
-# 		return ret
-
 def verifies(candidate, T, b_len, arguments):
 	#TODO make sure the b_len arg is correctly giving the length of string B (suffix / found) string
 	try:
@@ -229,38 +164,13 @@ def verify_and_translate(num_ids, S_dict, T, arguments, mappings):
 	pool = ThreadPool(arguments.step2_threads)
 
 	#		SINGLE THREADED MODE
-	result_list = map(lambda x : worker_verify(T, x, mappings, arguments), range(num_ids))
+	# result_list = map(lambda x : worker_verify(T, x, mappings, arguments), range(num_ids))
 
 	#		MULTI THREADED MODE
 	# result_list = pool.map(lambda x : worker_verify(T, x, mappings, arguments), range(num_ids))
 	result_list = pool.starmap(worker_verify, zip(repeat(T), range(num_ids), repeat(mappings), repeat(arguments)))
 
-	# for patt_id in range(num_ids):
-	#
-	# 	#ONE THREAD TASK PER PATT_ID
-	# 	file_name = 'temp/' + str(patt_id) + '.cands'
-	# 	with open(file_name, 'r') as input:
-	# 		file_data = list(line.strip().split('\t') for line in input)
-	#
-	# 		cands = [[mappings.id2index[patt_id], mappings.id2index[int(lst[0])], int(lst[1]), int(lst[2]), int(lst[3]), '']
-	# 				 for lst in file_data]
-	#
-	# 		for candidate in cands:
-	# 			b_len = mappings.index2len[candidate[1]]
-	# 			k, cigar = verifies(candidate, T, b_len, arguments)
-	# 			a_len = mappings.index2len[candidate[0]]
-	# 			if k == -1:
-	# 				continue
-	# 			sol = solution_builder.candidate_to_solution(candidate, a_len, b_len, cigar, k, arguments, mappings)
-	# 			if sol != None:
-	# 				solution_piles[patt_id].add(sol)
-	# 				# solution_set.add(sol)
-
-
-	# WAIT FOR THREADS TO JOIN
-	# solution_set = set.union(*solution_piles)
 	solution_set = set.union(*result_list)
-
 	deduplicated = sort_and_deduplicate_solutions(solution_set)
 	print(len(solution_set), 'solutions')
 	print(len(deduplicated), 'solutions after deduplication')
@@ -343,15 +253,15 @@ def overlaps(S_dict, arguments):
 '''SCRIPT BEGIN'''
 
 
-arguments = structs.Arguments(indels=True,
-					inclusions=False,
-					inverts=False,
-					e=0.41,
-					thresh=5,
-					in_path='data/basic.fasta',
+arguments = structs.Arguments(indels=False,
+					inclusions=True,
+					inverts=True,
+					e=0.02,
+					thresh=100,
+					in_path='data/data1.fasta',
 					out_path='data/out.txt',
-					step1_threads=4,
-					step2_threads=4,
+					step1_threads=7,
+					step2_threads=7,
 					use_existing_cands_files=False
 					)
 
@@ -359,7 +269,7 @@ if __name__ == '__main__':
 	random.seed(400)
 	raw_dict = prog_io.rd(arguments.in_path)
 
-	raw_dict = {0:'AAAATTTNTT', 1:'TTTTCCCC', 2:'GGGGTTTNNTT'}
+	# raw_dict = {0:'AAAATTTNTT', 1:'TTTTCCCC', 2:'GGGGTTTNNTT'}
 	S_dict = prog_alphabet.prepare(raw_dict)
 	print(S_dict)
 	solutions = overlaps(S_dict, arguments)
@@ -371,8 +281,8 @@ if __name__ == '__main__':
 		text_file.close()
 		print('WRITE DONE! wrote {} solutions!'.format(len(solutions)))
 
-	# print('not printing')
-	for sol in solutions:
-		print()
-		debug_aux.print_solution(sol, S_dict, debug=False)
+	print('not printing')
+	# for sol in solutions:
+	# 	print()
+	# 	debug_aux.print_solution(sol, S_dict, debug=False)
 	#TODO output in proper format, printing to file
