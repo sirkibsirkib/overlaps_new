@@ -48,7 +48,6 @@ def get_block_lengths_and_filters(patt_length, e, thresh):
 return whether or not the current node of the trie is permitted to generate candidates
 '''
 def conditions_met(p_i_start, p_i_next, thresh, block_id, errors):
-	global glob_filters
 	c1 = p_i_next >= thresh	# position in overlap at least at thresh
 	c2 = block_id > 0		# must have fully matched the first block
 	c3 = block_id >= s_param-1 and errors <= (block_id - s_param + 1)

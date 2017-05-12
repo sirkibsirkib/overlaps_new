@@ -52,8 +52,8 @@ def worker_write_candidates(S, T, index, p_id, mappings, arguments):
 		block_lengths, filters = specific.get_block_lengths_and_filters(len(patt), arguments.e, arguments.thresh)
 		assert sum(block_lengths) == len(patt)  # making sure partition lengths are sound
 		p_T_index = mappings.id2index[p_id]
-		error_hard_cap = math.floor(len(patt) * arguments.e)
 		max_B_len = len(patt) if not arguments.indels else math.floor(len(patt) / (1 - arguments.e))
+		error_hard_cap = math.floor(max_B_len * arguments.e)
 		for filter in filters:
 			first_block_index = len(block_lengths) - len(filter)
 			p_i_start = sum(block_lengths[:first_block_index])
